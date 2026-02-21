@@ -21,11 +21,12 @@ const { title = 'Psicometric' } = Astro.props;
   <body>
     <main class="app-shell">
       <header class="top-bar">
-        <div>
+        <a class="brand-link" href="/">
           <h1 class="brand-title">Psicometric</h1>
           <p class="brand-subtitle">Evaluaciones psicotécnicas laborales</p>
-        </div>
+        </a>
         <nav class="top-nav" aria-label="Sesión">
+          <a class="btn btn-compact" href="/">Panel</a>
           <LogoutButton compact client:load />
         </nav>
       </header>

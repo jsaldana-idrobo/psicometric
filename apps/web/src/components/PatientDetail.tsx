@@ -225,6 +225,9 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
             </p>
           </div>
           <div className="actions">
+            <a className="btn btn-soft" href="/">
+              Volver al panel
+            </a>
             <a className="btn btn-soft" href={`/patients/${patientId}/edit`}>
               Editar paciente
             </a>

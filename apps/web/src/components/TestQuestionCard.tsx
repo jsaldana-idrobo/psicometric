@@ -9,6 +9,26 @@ interface TestQuestionCardProps {
   readonly onAnswerChange: (patch: Partial<LocalAnswer>) => void;
 }
 
+interface PairedAffirmation {
+  left: string;
+  right: string;
+}
+
+function parsePairedAffirmation(text: string): PairedAffirmation | null {
+  const labeledPair = text.match(
+    /^Afirmaci[oó]n izquierda:\s*(.+?)\s*\|\s*Afirmaci[oó]n derecha:\s*(.+)$/i,
+  );
+
+  if (!labeledPair) {
+    return null;
+  }
+
+  return {
+    left: labeledPair[1].trim(),
+    right: labeledPair[2].trim(),
+  };
+}
+
 export function TestQuestionCard({
   question,
   index,
@@ -16,12 +36,29 @@ export function TestQuestionCard({
   onAnswerChange,
 }: TestQuestionCardProps) {
   const type = question.type ?? "single_choice";
+  const pairedAffirmation = parsePairedAffirmation(question.text);
 
   return (
     <article className="kpi" style={{ background: "#fff" }}>
-      <p style={{ fontWeight: 700 }}>
-        {index + 1}. {question.text}
-      </p>
+      {pairedAffirmation ? (
+        <div>
+          <p style={{ fontWeight: 700 }}>{index + 1}.</p>
+          <div className="paired-question-grid">
+            <div className="paired-question-item">
+              <p className="paired-question-label">Afirmación izquierda:</p>
+              <p className="paired-question-text">{pairedAffirmation.left}</p>
+            </div>
+            <div className="paired-question-item">
+              <p className="paired-question-label">Afirmación derecha:</p>
+              <p className="paired-question-text">{pairedAffirmation.right}</p>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <p style={{ fontWeight: 700 }}>
+          {index + 1}. {question.text}
+        </p>
+      )}
 
       {type === "single_choice" && (
         <div className="grid" style={{ marginTop: "8px" }}>

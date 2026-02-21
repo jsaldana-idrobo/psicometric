@@ -61,8 +61,8 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  background: linear-gradient(132deg, #b66f8f 0%, #945673 45%, #7b4962 100%);
-  color: #fefcff;
+  background: linear-gradient(132deg, #8b4e69 0%, #76435b 45%, #603548 100%);
+  color: #fff;
   border-radius: var(--radius);
   padding: 18px 22px;
   box-shadow: var(--shadow);
@@ -345,14 +345,14 @@ a {
 }
 
 .top-nav .btn {
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  background: rgba(255, 255, 255, 0.18);
-  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.52);
+  background: rgba(255, 255, 255, 0.72);
+  color: #3c2130;
   box-shadow: none;
 }
 
 .top-nav .btn:hover {
-  background: rgba(255, 255, 255, 0.27);
+  background: rgba(255, 255, 255, 0.88);
 }
 
 @media (max-width: 900px) {

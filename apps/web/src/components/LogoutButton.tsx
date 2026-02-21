@@ -1,7 +1,7 @@
 import { apiFetch } from "../lib/api";
 
 interface LogoutButtonProps {
-  compact?: boolean;
+  readonly compact?: boolean;
 }
 
 export function LogoutButton({ compact = false }: LogoutButtonProps) {

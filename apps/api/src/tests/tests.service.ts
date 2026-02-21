@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import { defaultTests } from '../seed/default-tests';
 import { TestDefinition, TestDocument } from './schemas/test.schema';
 
@@ -12,15 +12,24 @@ export class TestsService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
-    const existingCount = await this.testModel.countDocuments().exec();
-    if (existingCount === 0) {
-      await this.testModel.insertMany(
-        defaultTests.map((test) => ({
-          ...test,
-          active: true,
-        })),
-      );
-    }
+    await this.deduplicateByName();
+
+    await this.testModel.collection.createIndex({ name: 1 }, { unique: true });
+
+    await this.testModel.bulkWrite(
+      defaultTests.map((test) => ({
+        updateOne: {
+          filter: { name: test.name },
+          update: {
+            $set: {
+              ...test,
+              active: true,
+            },
+          },
+          upsert: true,
+        },
+      })),
+    );
   }
 
   async findAll() {
@@ -42,5 +51,34 @@ export class TestsService implements OnModuleInit {
     }
 
     return test;
+  }
+
+  private async deduplicateByName() {
+    const duplicatedGroups = await this.testModel
+      .aggregate<{
+        _id: string;
+        ids: Types.ObjectId[];
+        count: number;
+      }>([
+        {
+          $group: {
+            _id: { $toLower: '$name' },
+            ids: { $push: '$_id' },
+            count: { $sum: 1 },
+          },
+        },
+        { $match: { count: { $gt: 1 } } },
+      ])
+      .exec();
+
+    if (duplicatedGroups.length === 0) {
+      return;
+    }
+
+    const idsToDelete = duplicatedGroups.flatMap((group) => group.ids.slice(1));
+
+    if (idsToDelete.length > 0) {
+      await this.testModel.deleteMany({ _id: { $in: idsToDelete } }).exec();
+    }
   }
 }

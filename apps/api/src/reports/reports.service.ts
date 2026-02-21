@@ -12,6 +12,34 @@ import {
 } from '../results/schemas/test-result.schema';
 import { User, UserDocument } from '../users/schemas/user.schema';
 
+interface ReportPsychologist {
+  fullName: string;
+  signatureName?: string;
+  licenseNumber?: string;
+}
+
+interface ReportPatient {
+  fullName: string;
+  documentId: string;
+  dateOfBirth: Date;
+  phone?: string;
+  email?: string;
+  company?: string;
+  position?: string;
+  evaluationDate: Date;
+}
+
+interface ReportResult {
+  testId: unknown;
+  totalScore: number;
+  interpretationLabel: string;
+  interpretationDescription: string;
+  observations?: string;
+  finalConclusion?: string;
+  recommendation?: string;
+  evaluatedAt: Date;
+}
+
 @Injectable()
 export class ReportsService {
   constructor(
@@ -29,7 +57,27 @@ export class ReportsService {
     patientId: string,
     writable: NodeJS.WritableStream,
   ): Promise<void> {
-    const [psychologist, patient, results] = await Promise.all([
+    const { psychologist, patient, results } = await this.loadReportData(
+      psychologistId,
+      patientId,
+    );
+
+    const doc = new PDFDocument({
+      size: 'A4',
+      margin: 42,
+    });
+    doc.pipe(writable);
+
+    this.renderHeader(doc);
+    this.renderPatientSection(doc, patient);
+    this.renderResultsSection(doc, results);
+    this.renderSignatureSection(doc, psychologist);
+
+    doc.end();
+  }
+
+  private async loadReportData(psychologistId: string, patientId: string) {
+    const [psychologistRaw, patientRaw, resultsRaw] = await Promise.all([
       this.userModel.findById(psychologistId).lean().exec(),
       this.patientModel
         .findOne({ _id: patientId, psychologistId })
@@ -43,17 +91,22 @@ export class ReportsService {
         .exec(),
     ]);
 
-    if (!psychologist) {
+    if (!psychologistRaw) {
       throw new NotFoundException('Psicólogo no encontrado');
     }
 
-    if (!patient) {
+    if (!patientRaw) {
       throw new NotFoundException('Paciente no encontrado');
     }
 
-    const doc = new PDFDocument({ size: 'A4', margin: 42 });
-    doc.pipe(writable);
+    return {
+      psychologist: psychologistRaw as unknown as ReportPsychologist,
+      patient: patientRaw as unknown as ReportPatient,
+      results: resultsRaw as unknown as ReportResult[],
+    };
+  }
 
+  private renderHeader(doc: PDFKit.PDFDocument) {
     const clinicName =
       this.configService.get<string>('CLINIC_NAME') ??
       'Psicometric Consultorio';
@@ -73,7 +126,12 @@ export class ReportsService {
       .fillColor('#4b5563')
       .text('Informe Psicotécnico Laboral', { align: 'right' })
       .moveDown(2);
+  }
 
+  private renderPatientSection(
+    doc: PDFKit.PDFDocument,
+    patient: ReportPatient,
+  ) {
     doc
       .fillColor('#111827')
       .fontSize(13)
@@ -94,12 +152,18 @@ export class ReportsService {
     ];
 
     doc.fontSize(10).font('Helvetica').fillColor('#1f2937');
+
     for (const field of patientFields) {
       doc.text(field);
     }
 
     doc.moveDown(1.5);
+  }
 
+  private renderResultsSection(
+    doc: PDFKit.PDFDocument,
+    results: ReportResult[],
+  ) {
     doc
       .fontSize(13)
       .font('Helvetica-Bold')
@@ -113,43 +177,50 @@ export class ReportsService {
         .fillColor('#374151')
         .text('No hay resultados registrados para este paciente.')
         .moveDown(1);
+      return;
     }
 
     for (const result of results) {
-      const test = typeof result.testId === 'object' ? result.testId : null;
-      const testName = test && 'name' in test ? String(test.name) : 'Prueba';
-      const category =
-        test && 'category' in test ? String(test.category) : 'General';
-
-      if (doc.y > 700) {
-        doc.addPage();
-      }
-
-      doc
-        .fontSize(11)
-        .font('Helvetica-Bold')
-        .fillColor('#111827')
-        .text(`${testName} (${category})`);
-
-      doc
-        .fontSize(10)
-        .font('Helvetica')
-        .fillColor('#374151')
-        .text(`Puntaje: ${result.totalScore}`)
-        .text(`Interpretación: ${result.interpretationLabel}`)
-        .text(`Detalle: ${result.interpretationDescription}`)
-        .text(`Observaciones: ${result.observations ?? 'N/A'}`)
-        .text(`Conclusión: ${result.finalConclusion ?? 'N/A'}`)
-        .text(`Recomendación: ${result.recommendation ?? 'N/A'}`)
-        .text(
-          `Fecha: ${new Date(result.evaluatedAt).toLocaleDateString('es-CO')}`,
-        )
-        .moveDown(1);
+      this.ensurePageSpace(doc, 700);
+      this.renderSingleResult(doc, result);
     }
+  }
 
-    if (doc.y > 650) {
-      doc.addPage();
-    }
+  private renderSingleResult(doc: PDFKit.PDFDocument, result: ReportResult) {
+    const test =
+      typeof result.testId === 'object' && result.testId ? result.testId : null;
+
+    const testName = test && 'name' in test ? String(test.name) : 'Prueba';
+    const category =
+      test && 'category' in test ? String(test.category) : 'General';
+
+    doc
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .fillColor('#111827')
+      .text(`${testName} (${category})`);
+
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .fillColor('#374151')
+      .text(`Puntaje: ${result.totalScore}`)
+      .text(`Interpretación: ${result.interpretationLabel}`)
+      .text(`Detalle: ${result.interpretationDescription}`)
+      .text(`Observaciones: ${result.observations ?? 'N/A'}`)
+      .text(`Conclusión: ${result.finalConclusion ?? 'N/A'}`)
+      .text(`Recomendación: ${result.recommendation ?? 'N/A'}`)
+      .text(
+        `Fecha: ${new Date(result.evaluatedAt).toLocaleDateString('es-CO')}`,
+      )
+      .moveDown(1);
+  }
+
+  private renderSignatureSection(
+    doc: PDFKit.PDFDocument,
+    psychologist: ReportPsychologist,
+  ) {
+    this.ensurePageSpace(doc, 650);
 
     doc
       .moveDown(1)
@@ -171,7 +242,11 @@ export class ReportsService {
       )
       .moveDown(0.2)
       .text('______________________________');
+  }
 
-    doc.end();
+  private ensurePageSpace(doc: PDFKit.PDFDocument, threshold: number) {
+    if (doc.y > threshold) {
+      doc.addPage();
+    }
   }
 }

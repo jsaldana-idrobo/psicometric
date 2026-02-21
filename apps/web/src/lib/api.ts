@@ -26,6 +26,16 @@ async function parseResponse(response: Response) {
   return response.json();
 }
 
+function withJsonHeaders(init?: RequestInit): RequestInit {
+  const headers = new Headers(init?.headers);
+  headers.set("Content-Type", "application/json");
+
+  return {
+    ...init,
+    headers,
+  };
+}
+
 async function request<T>(
   path: string,
   init: RequestInit,
@@ -41,15 +51,16 @@ async function request<T>(
         : "Error inesperado al comunicarse con la API";
 
     const error = new ApiError(message, response.status);
+    const browserWindow = globalThis.window;
 
     if (
-      typeof window !== "undefined" &&
+      browserWindow &&
       options.redirectOnUnauthorized &&
       response.status === 401 &&
       path !== "/auth/login" &&
       path !== "/auth/register"
     ) {
-      window.location.href = "/login";
+      browserWindow.location.href = "/login";
     }
 
     throw error;
@@ -65,12 +76,8 @@ export async function apiFetch<T>(
   return request<T>(
     path,
     {
-      ...init,
+      ...withJsonHeaders(init),
       credentials: "include",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
     },
     { redirectOnUnauthorized: true },
   );
@@ -83,12 +90,8 @@ export async function apiFetchPublic<T>(
   return request<T>(
     path,
     {
-      ...init,
+      ...withJsonHeaders(init),
       credentials: "omit",
-      headers: {
-        "Content-Type": "application/json",
-        ...(init.headers ?? {}),
-      },
     },
     { redirectOnUnauthorized: false },
   );

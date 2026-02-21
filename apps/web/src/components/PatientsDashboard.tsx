@@ -57,7 +57,9 @@ export function PatientsDashboard() {
   }, [patients, query]);
 
   const onDelete = async (patientId: string) => {
-    const confirmed = window.confirm("¿Eliminar este paciente y su historial?");
+    const confirmed = globalThis.confirm(
+      "¿Eliminar este paciente y su historial?",
+    );
 
     if (!confirmed) {
       return;
@@ -69,7 +71,7 @@ export function PatientsDashboard() {
         current.filter((patient) => patient.id !== patientId),
       );
     } catch (deleteError) {
-      window.alert(
+      globalThis.alert(
         deleteError instanceof Error
           ? deleteError.message
           : "No se pudo eliminar",

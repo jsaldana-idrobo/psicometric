@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetchPublic } from "../lib/api";
 import type { PublicSessionOpen, TestAnswer, TestQuestion } from "../lib/types";
-import { DrawingInput } from './DrawingInput';
+import { DrawingInput } from "./DrawingInput";
 
 interface PublicSessionRunnerProps {
-  token: string;
+  readonly token: string;
 }
 
 interface LocalAnswer {
@@ -13,18 +13,30 @@ interface LocalAnswer {
   drawingDataUrl?: string;
 }
 
-function isQuestionAnswered(question: TestQuestion, answer?: LocalAnswer): boolean {
+interface SessionQuestionCardProps {
+  readonly question: TestQuestion;
+  readonly index: number;
+  readonly answer: LocalAnswer;
+  readonly onOptionChange: (optionId: string) => void;
+  readonly onTextChange: (value: string) => void;
+  readonly onDrawingChange: (value: string) => void;
+}
+
+function isQuestionAnswered(
+  question: TestQuestion,
+  answer?: LocalAnswer,
+): boolean {
   if (question.required === false) {
     return true;
   }
 
-  const type = question.type ?? 'single_choice';
+  const type = question.type ?? "single_choice";
 
-  if (type === 'single_choice') {
+  if (type === "single_choice") {
     return Boolean(answer?.optionId);
   }
 
-  if (type === 'text') {
+  if (type === "text") {
     return Boolean(answer?.textResponse?.trim());
   }
 
@@ -33,10 +45,67 @@ function isQuestionAnswered(question: TestQuestion, answer?: LocalAnswer): boole
 
 function asDate(value?: string) {
   if (!value) {
-    return 'N/A';
+    return "N/A";
   }
 
-  return new Date(value).toLocaleString('es-CO');
+  return new Date(value).toLocaleString("es-CO");
+}
+
+function SessionQuestionCard({
+  question,
+  index,
+  answer,
+  onOptionChange,
+  onTextChange,
+  onDrawingChange,
+}: SessionQuestionCardProps) {
+  const type = question.type ?? "single_choice";
+
+  return (
+    <article className="kpi" style={{ background: "#fff" }}>
+      <p style={{ fontWeight: 700 }}>
+        {index + 1}. {question.text}
+      </p>
+
+      {type === "single_choice" && (
+        <div className="grid" style={{ marginTop: "8px" }}>
+          {question.options.map((option) => (
+            <label
+              key={option.id}
+              style={{ display: "flex", gap: "8px", alignItems: "center" }}
+            >
+              <input
+                type="radio"
+                name={question.id}
+                value={option.id}
+                checked={answer.optionId === option.id}
+                onChange={() => onOptionChange(option.id)}
+              />
+              <span>{option.text}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {type === "text" && (
+        <textarea
+          className="textarea"
+          style={{ marginTop: "8px" }}
+          value={answer.textResponse ?? ""}
+          onChange={(event) => onTextChange(event.target.value)}
+        />
+      )}
+
+      {type === "drawing" && (
+        <div style={{ marginTop: "8px" }}>
+          <DrawingInput
+            value={answer.drawingDataUrl}
+            onChange={onDrawingChange}
+          />
+        </div>
+      )}
+    </article>
+  );
 }
 
 export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
@@ -45,13 +114,13 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
-      setError('');
+      setError("");
 
       try {
         const response = await apiFetchPublic<PublicSessionOpen>(
@@ -73,7 +142,7 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
         setError(
           loadError instanceof Error
             ? loadError.message
-            : 'No se pudo cargar la sesión',
+            : "No se pudo cargar la sesión",
         );
       } finally {
         setIsLoading(false);
@@ -86,8 +155,9 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
   const requiredCount = useMemo(
     () =>
       session
-        ? session.test.questions.filter((question) => question.required !== false)
-            .length
+        ? session.test.questions.filter(
+            (question) => question.required !== false,
+          ).length
         : 0,
     [session],
   );
@@ -117,30 +187,43 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
           drawingDataUrl: answer.drawingDataUrl,
         };
       })
-      .filter((answer) => answer.optionId || answer.textResponse || answer.drawingDataUrl);
+      .filter(
+        (answer) =>
+          answer.optionId || answer.textResponse || answer.drawingDataUrl,
+      );
   }, [answers, session]);
+
+  const updateAnswer = (questionId: string, patch: Partial<LocalAnswer>) => {
+    setAnswers((current) => ({
+      ...current,
+      [questionId]: {
+        ...current[questionId],
+        ...patch,
+      },
+    }));
+  };
 
   const saveProgress = async () => {
     if (!session || payloadAnswers.length === 0) {
       return;
     }
 
-    setNotice('');
-    setError('');
+    setNotice("");
+    setError("");
     setIsSaving(true);
 
     try {
       await apiFetchPublic(`/public-sessions/open/${token}/save`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ answers: payloadAnswers }),
       });
 
-      setNotice('Progreso guardado correctamente. Puedes continuar luego.');
+      setNotice("Progreso guardado correctamente. Puedes continuar luego.");
     } catch (saveError) {
       setError(
         saveError instanceof Error
           ? saveError.message
-          : 'No se pudo guardar el progreso',
+          : "No se pudo guardar el progreso",
       );
     } finally {
       setIsSaving(false);
@@ -154,23 +237,23 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
     }
 
     if (answeredCount !== session.test.questions.length) {
-      setError('Debes completar todas las preguntas requeridas antes de finalizar.');
+      setError(
+        "Debes completar todas las preguntas requeridas antes de finalizar.",
+      );
       return;
     }
 
-    setNotice('');
-    setError('');
+    setNotice("");
+    setError("");
     setIsSubmitting(true);
 
     try {
       await apiFetchPublic(`/public-sessions/open/${token}/submit`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ answers: payloadAnswers }),
       });
 
-      setNotice(
-        'Prueba enviada correctamente. Puedes cerrar esta ventana.',
-      );
+      setNotice("Prueba enviada correctamente. Puedes cerrar esta ventana.");
 
       const updated = await apiFetchPublic<PublicSessionOpen>(
         `/public-sessions/open/${token}`,
@@ -180,7 +263,7 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
       setError(
         submitError instanceof Error
           ? submitError.message
-          : 'No se pudo finalizar la prueba',
+          : "No se pudo finalizar la prueba",
       );
     } finally {
       setIsSubmitting(false);
@@ -195,25 +278,27 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
     return <section className="panel error">Sesión no disponible.</section>;
   }
 
-  if (session.status === 'expired') {
+  if (session.status === "expired") {
     return (
       <section className="panel">
         <h2>Sesión vencida</h2>
-        <p style={{ marginTop: '8px', color: '#4b5563' }}>
-          Esta invitación expiró el {asDate(session.expiresAt)}. Solicita un nuevo enlace al psicólogo.
+        <p style={{ marginTop: "8px", color: "#4b5563" }}>
+          Esta invitación expiró el {asDate(session.expiresAt)}. Solicita un
+          nuevo enlace al psicólogo.
         </p>
       </section>
     );
   }
 
-  if (session.status === 'submitted') {
+  if (session.status === "submitted") {
     return (
       <section className="panel">
         <h2>Prueba finalizada</h2>
-        <p style={{ marginTop: '8px', color: '#4b5563' }}>
-          Gracias, {session.patient.fullName}. Tu prueba ya fue enviada correctamente.
+        <p style={{ marginTop: "8px", color: "#4b5563" }}>
+          Gracias, {session.patient.fullName}. Tu prueba ya fue enviada
+          correctamente.
         </p>
-        <p style={{ marginTop: '6px', color: '#4b5563' }}>
+        <p style={{ marginTop: "6px", color: "#4b5563" }}>
           Fecha de envío: {asDate(session.submittedAt)}
         </p>
       </section>
@@ -223,89 +308,42 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
   return (
     <section className="panel">
       <h2>{session.test.name}</h2>
-      <p style={{ marginTop: '6px', color: '#4b5563' }}>
+      <p style={{ marginTop: "6px", color: "#4b5563" }}>
         Participante: <strong>{session.patient.fullName}</strong>
       </p>
-      <p style={{ marginTop: '6px', color: '#4b5563' }}>{session.test.description}</p>
+      <p style={{ marginTop: "6px", color: "#4b5563" }}>
+        {session.test.description}
+      </p>
       {session.test.instructions && (
-        <p style={{ marginTop: '8px', color: '#334155' }}>
+        <p style={{ marginTop: "8px", color: "#334155" }}>
           <strong>Instrucciones:</strong> {session.test.instructions}
         </p>
       )}
-      <p style={{ color: '#0f766e', marginTop: '8px', fontWeight: 600 }}>
-        Completadas: {answeredCount}/{session.test.questions.length} (requeridas: {requiredCount})
+      <p style={{ color: "#0f766e", marginTop: "8px", fontWeight: 600 }}>
+        Completadas: {answeredCount}/{session.test.questions.length}{" "}
+        (requeridas: {requiredCount})
       </p>
 
-      <form className="grid" style={{ marginTop: '14px' }} onSubmit={submit}>
+      <form className="grid" style={{ marginTop: "14px" }} onSubmit={submit}>
         {session.test.questions.map((question, index) => {
-          const type = question.type ?? 'single_choice';
           const answer = answers[question.id] ?? {};
 
           return (
-            <article key={question.id} className="kpi" style={{ background: '#fff' }}>
-              <p style={{ fontWeight: 700 }}>
-                {index + 1}. {question.text}
-              </p>
-
-              {type === 'single_choice' && (
-                <div className="grid" style={{ marginTop: '8px' }}>
-                  {question.options.map((option) => (
-                    <label key={option.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input
-                        type="radio"
-                        name={question.id}
-                        value={option.id}
-                        checked={answer.optionId === option.id}
-                        onChange={() =>
-                          setAnswers((current) => ({
-                            ...current,
-                            [question.id]: {
-                              ...current[question.id],
-                              optionId: option.id,
-                            },
-                          }))
-                        }
-                      />
-                      <span>{option.text}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {type === 'text' && (
-                <textarea
-                  className="textarea"
-                  style={{ marginTop: '8px' }}
-                  value={answer.textResponse ?? ''}
-                  onChange={(event) =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [question.id]: {
-                        ...current[question.id],
-                        textResponse: event.target.value,
-                      },
-                    }))
-                  }
-                />
-              )}
-
-              {type === 'drawing' && (
-                <div style={{ marginTop: '8px' }}>
-                  <DrawingInput
-                    value={answer.drawingDataUrl}
-                    onChange={(value) =>
-                      setAnswers((current) => ({
-                        ...current,
-                        [question.id]: {
-                          ...current[question.id],
-                          drawingDataUrl: value,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              )}
-            </article>
+            <SessionQuestionCard
+              key={question.id}
+              question={question}
+              index={index}
+              answer={answer}
+              onOptionChange={(optionId) =>
+                updateAnswer(question.id, { optionId })
+              }
+              onTextChange={(value) =>
+                updateAnswer(question.id, { textResponse: value })
+              }
+              onDrawingChange={(value) =>
+                updateAnswer(question.id, { drawingDataUrl: value })
+              }
+            />
           );
         })}
 
@@ -316,7 +354,7 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
             onClick={saveProgress}
             disabled={isSaving || isSubmitting || payloadAnswers.length === 0}
           >
-            {isSaving ? 'Guardando...' : 'Guardar progreso'}
+            {isSaving ? "Guardando..." : "Guardar progreso"}
           </button>
 
           <button
@@ -324,7 +362,7 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
             className="btn btn-primary"
             disabled={isSubmitting}
           >
-            {isSubmitting ? 'Enviando...' : 'Finalizar y enviar'}
+            {isSubmitting ? "Enviando..." : "Finalizar y enviar"}
           </button>
         </div>
       </form>

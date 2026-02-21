@@ -27,6 +27,8 @@ import {
   PublicSessionStatus,
 } from './schemas/public-session.schema';
 
+type SessionQuestion = TestDefinition['questions'][number];
+
 @Injectable()
 export class PublicSessionsService {
   constructor(
@@ -275,61 +277,95 @@ export class PublicSessionsService {
         );
       }
 
-      const questionType = question.type ?? QuestionType.SINGLE_CHOICE;
+      const sanitizedAnswer = this.sanitizeSingleAnswer(question, answer);
 
-      if (questionType === QuestionType.SINGLE_CHOICE) {
-        const optionId = answer.optionId?.trim();
-        if (!optionId) {
-          continue;
-        }
-
-        const optionExists = question.options.some(
-          (option) => option.id === optionId,
-        );
-        if (!optionExists) {
-          throw new BadRequestException(
-            `Opción inválida para la pregunta ${question.id}`,
-          );
-        }
-
-        deduped.set(question.id, {
-          questionId: question.id,
-          optionId,
-        });
-        continue;
+      if (sanitizedAnswer) {
+        deduped.set(question.id, sanitizedAnswer);
       }
-
-      if (questionType === QuestionType.TEXT) {
-        const textResponse = answer.textResponse?.trim();
-        if (!textResponse) {
-          continue;
-        }
-
-        deduped.set(question.id, {
-          questionId: question.id,
-          textResponse,
-        });
-        continue;
-      }
-
-      const drawingDataUrl = answer.drawingDataUrl?.trim();
-      if (!drawingDataUrl) {
-        continue;
-      }
-
-      if (!drawingDataUrl.startsWith('data:image/')) {
-        throw new BadRequestException(
-          `Formato de dibujo inválido para la pregunta ${question.id}`,
-        );
-      }
-
-      deduped.set(question.id, {
-        questionId: question.id,
-        drawingDataUrl,
-      });
     }
 
     return Array.from(deduped.values());
+  }
+
+  private sanitizeSingleAnswer(
+    question: SessionQuestion,
+    answer: PublicSessionAnswerDto | AnswerInputDto,
+  ): AnswerInputDto | null {
+    const questionType = question.type ?? QuestionType.SINGLE_CHOICE;
+
+    if (questionType === QuestionType.SINGLE_CHOICE) {
+      return this.sanitizeSingleChoiceAnswer(question, answer);
+    }
+
+    if (questionType === QuestionType.TEXT) {
+      return this.sanitizeTextAnswer(question, answer);
+    }
+
+    return this.sanitizeDrawingAnswer(question, answer);
+  }
+
+  private sanitizeSingleChoiceAnswer(
+    question: SessionQuestion,
+    answer: PublicSessionAnswerDto | AnswerInputDto,
+  ): AnswerInputDto | null {
+    const optionId = answer.optionId?.trim();
+
+    if (!optionId) {
+      return null;
+    }
+
+    const optionExists = question.options.some(
+      (option) => option.id === optionId,
+    );
+
+    if (!optionExists) {
+      throw new BadRequestException(
+        `Opción inválida para la pregunta ${question.id}`,
+      );
+    }
+
+    return {
+      questionId: question.id,
+      optionId,
+    };
+  }
+
+  private sanitizeTextAnswer(
+    question: SessionQuestion,
+    answer: PublicSessionAnswerDto | AnswerInputDto,
+  ): AnswerInputDto | null {
+    const textResponse = answer.textResponse?.trim();
+
+    if (!textResponse) {
+      return null;
+    }
+
+    return {
+      questionId: question.id,
+      textResponse,
+    };
+  }
+
+  private sanitizeDrawingAnswer(
+    question: SessionQuestion,
+    answer: PublicSessionAnswerDto | AnswerInputDto,
+  ): AnswerInputDto | null {
+    const drawingDataUrl = answer.drawingDataUrl?.trim();
+
+    if (!drawingDataUrl) {
+      return null;
+    }
+
+    if (!drawingDataUrl.startsWith('data:image/')) {
+      throw new BadRequestException(
+        `Formato de dibujo inválido para la pregunta ${question.id}`,
+      );
+    }
+
+    return {
+      questionId: question.id,
+      drawingDataUrl,
+    };
   }
 
   private ensureSessionAvailable(

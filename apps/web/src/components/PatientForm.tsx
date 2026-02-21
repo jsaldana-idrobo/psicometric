@@ -3,8 +3,8 @@ import { apiFetch } from "../lib/api";
 import type { Patient } from "../lib/types";
 
 interface PatientFormProps {
-  mode: "create" | "edit";
-  patientId?: string;
+  readonly mode: "create" | "edit";
+  readonly patientId?: string;
 }
 
 interface PatientPayload {
@@ -31,6 +31,18 @@ const emptyPayload: PatientPayload = {
 
 function toInputDate(value: string) {
   return new Date(value).toISOString().slice(0, 10);
+}
+
+function getSaveLabel(mode: PatientFormProps["mode"], isSaving: boolean) {
+  if (isSaving) {
+    return "Guardando...";
+  }
+
+  if (mode === "create") {
+    return "Crear paciente";
+  }
+
+  return "Guardar cambios";
 }
 
 export function PatientForm({ mode, patientId }: PatientFormProps) {
@@ -96,7 +108,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
         });
         setSuccess("Paciente creado correctamente. Redirigiendo...");
         setTimeout(() => {
-          window.location.href = `/patients/${created.id}`;
+          const browserWindow = globalThis.window;
+          if (browserWindow) {
+            browserWindow.location.href = `/patients/${created.id}`;
+          }
         }, 600);
       } else {
         await apiFetch<Patient>(`/patients/${patientId}`, {
@@ -258,11 +273,7 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
               type="submit"
               disabled={isSaving}
             >
-              {isSaving
-                ? "Guardando..."
-                : mode === "create"
-                  ? "Crear paciente"
-                  : "Guardar cambios"}
+              {getSaveLabel(mode, isSaving)}
             </button>
             <a
               className="btn btn-soft"

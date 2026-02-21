@@ -4,8 +4,8 @@ import type { TestDefinition, TestQuestion } from "../lib/types";
 import { DrawingInput } from "./DrawingInput";
 
 interface ApplyTestFormProps {
-  patientId: string;
-  testId: string;
+  readonly patientId: string;
+  readonly testId: string;
 }
 
 type Recommendation = "" | "APTO" | "NO_APTO" | "APTO_CON_OBSERVACIONES";
@@ -14,6 +14,15 @@ interface LocalAnswer {
   optionId?: string;
   textResponse?: string;
   drawingDataUrl?: string;
+}
+
+interface QuestionCardProps {
+  readonly question: TestQuestion;
+  readonly index: number;
+  readonly answer: LocalAnswer;
+  readonly onOptionChange: (optionId: string) => void;
+  readonly onTextChange: (value: string) => void;
+  readonly onDrawingChange: (value: string) => void;
 }
 
 function isQuestionAnswered(
@@ -35,6 +44,67 @@ function isQuestionAnswered(
   }
 
   return Boolean(answer?.drawingDataUrl);
+}
+
+function QuestionCard({
+  question,
+  index,
+  answer,
+  onOptionChange,
+  onTextChange,
+  onDrawingChange,
+}: QuestionCardProps) {
+  const type = question.type ?? "single_choice";
+
+  return (
+    <article className="kpi" style={{ background: "#fff" }}>
+      <p style={{ fontWeight: 700 }}>
+        {index + 1}. {question.text}
+      </p>
+
+      {type === "single_choice" && (
+        <div className="grid" style={{ marginTop: "8px" }}>
+          {question.options.map((option) => (
+            <label
+              key={option.id}
+              style={{
+                display: "flex",
+                gap: "8px",
+                alignItems: "center",
+              }}
+            >
+              <input
+                type="radio"
+                name={question.id}
+                value={option.id}
+                checked={answer.optionId === option.id}
+                onChange={() => onOptionChange(option.id)}
+              />
+              <span>{option.text}</span>
+            </label>
+          ))}
+        </div>
+      )}
+
+      {type === "text" && (
+        <textarea
+          className="textarea"
+          style={{ marginTop: "8px" }}
+          value={answer.textResponse ?? ""}
+          onChange={(event) => onTextChange(event.target.value)}
+        />
+      )}
+
+      {type === "drawing" && (
+        <div style={{ marginTop: "8px" }}>
+          <DrawingInput
+            value={answer.drawingDataUrl}
+            onChange={onDrawingChange}
+          />
+        </div>
+      )}
+    </article>
+  );
 }
 
 export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
@@ -88,6 +158,16 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     ).length;
   }, [answers, test]);
 
+  const updateAnswer = (questionId: string, patch: Partial<LocalAnswer>) => {
+    setAnswers((current) => ({
+      ...current,
+      [questionId]: {
+        ...current[questionId],
+        ...patch,
+      },
+    }));
+  };
+
   const onSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
     if (!test) {
@@ -137,7 +217,10 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
         "Resultado guardado correctamente. Regresando al expediente...",
       );
       setTimeout(() => {
-        window.location.href = `/patients/${patientId}`;
+        const browserWindow = globalThis.window;
+        if (browserWindow) {
+          browserWindow.location.href = `/patients/${patientId}`;
+        }
       }, 900);
     } catch (submitError) {
       setError(
@@ -174,85 +257,23 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
 
       <form className="grid" style={{ marginTop: "14px" }} onSubmit={onSubmit}>
         {test.questions.map((question, index) => {
-          const type = question.type ?? "single_choice";
           const answer = answers[question.id] ?? {};
-
           return (
-            <article
+            <QuestionCard
               key={question.id}
-              className="kpi"
-              style={{ background: "#fff" }}
-            >
-              <p style={{ fontWeight: 700 }}>
-                {index + 1}. {question.text}
-              </p>
-
-              {type === "single_choice" && (
-                <div className="grid" style={{ marginTop: "8px" }}>
-                  {question.options.map((option) => (
-                    <label
-                      key={option.id}
-                      style={{
-                        display: "flex",
-                        gap: "8px",
-                        alignItems: "center",
-                      }}
-                    >
-                      <input
-                        type="radio"
-                        name={question.id}
-                        value={option.id}
-                        checked={answer.optionId === option.id}
-                        onChange={() =>
-                          setAnswers((current) => ({
-                            ...current,
-                            [question.id]: {
-                              ...current[question.id],
-                              optionId: option.id,
-                            },
-                          }))
-                        }
-                      />
-                      <span>{option.text}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-
-              {type === "text" && (
-                <textarea
-                  className="textarea"
-                  style={{ marginTop: "8px" }}
-                  value={answer.textResponse ?? ""}
-                  onChange={(event) =>
-                    setAnswers((current) => ({
-                      ...current,
-                      [question.id]: {
-                        ...current[question.id],
-                        textResponse: event.target.value,
-                      },
-                    }))
-                  }
-                />
-              )}
-
-              {type === "drawing" && (
-                <div style={{ marginTop: "8px" }}>
-                  <DrawingInput
-                    value={answer.drawingDataUrl}
-                    onChange={(value) =>
-                      setAnswers((current) => ({
-                        ...current,
-                        [question.id]: {
-                          ...current[question.id],
-                          drawingDataUrl: value,
-                        },
-                      }))
-                    }
-                  />
-                </div>
-              )}
-            </article>
+              question={question}
+              index={index}
+              answer={answer}
+              onOptionChange={(optionId) =>
+                updateAnswer(question.id, { optionId })
+              }
+              onTextChange={(value) =>
+                updateAnswer(question.id, { textResponse: value })
+              }
+              onDrawingChange={(value) =>
+                updateAnswer(question.id, { drawingDataUrl: value })
+              }
+            />
           );
         })}
 

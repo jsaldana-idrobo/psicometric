@@ -8,7 +8,7 @@ import type {
 } from "../lib/types";
 
 interface PatientDetailProps {
-  patientId: string;
+  readonly patientId: string;
 }
 
 interface ResultEdit {
@@ -137,9 +137,9 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
       setResults((current) =>
         current.map((result) => (result._id === resultId ? updated : result)),
       );
-      window.alert("Observaciones actualizadas");
+      globalThis.alert("Observaciones actualizadas");
     } catch (saveError) {
-      window.alert(
+      globalThis.alert(
         saveError instanceof Error
           ? saveError.message
           : "No se pudo actualizar",
@@ -164,13 +164,13 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
       );
       setSessions(sessionsResponse);
 
-      if (navigator.clipboard?.writeText) {
-        await navigator.clipboard.writeText(created.publicUrl);
+      if (globalThis.navigator.clipboard?.writeText) {
+        await globalThis.navigator.clipboard.writeText(created.publicUrl);
       }
 
-      window.alert("Enlace generado y copiado al portapapeles");
+      globalThis.alert("Enlace generado y copiado al portapapeles");
     } catch (linkError) {
-      window.alert(
+      globalThis.alert(
         linkError instanceof Error
           ? linkError.message
           : "No se pudo generar el enlace público",
@@ -182,16 +182,16 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
 
   const copySessionLink = async (session: PublicSession) => {
     try {
-      await navigator.clipboard.writeText(session.publicUrl);
-      window.alert("Enlace copiado");
+      await globalThis.navigator.clipboard.writeText(session.publicUrl);
+      globalThis.alert("Enlace copiado");
     } catch {
-      window.alert("No se pudo copiar el enlace");
+      globalThis.alert("No se pudo copiar el enlace");
     }
   };
 
   const downloadPdf = () => {
     const url = apiDownloadUrl(`/reports/patient/${patientId}/pdf`);
-    window.open(url, "_blank");
+    globalThis.open(url, "_blank");
   };
 
   if (isLoading) {

@@ -2,10 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
 interface DrawingInputProps {
-  value?: string;
-  onChange: (value: string) => void;
-  width?: number;
-  height?: number;
+  readonly value?: string;
+  readonly onChange: (value: string) => void;
+  readonly width?: number;
+  readonly height?: number;
 }
 
 export function DrawingInput({

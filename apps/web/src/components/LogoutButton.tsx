@@ -5,7 +5,10 @@ export function LogoutButton() {
     try {
       await apiFetch("/auth/logout", { method: "POST" });
     } finally {
-      window.location.href = "/login";
+      const browserWindow = globalThis.window;
+      if (browserWindow) {
+        browserWindow.location.href = "/login";
+      }
     }
   };
 

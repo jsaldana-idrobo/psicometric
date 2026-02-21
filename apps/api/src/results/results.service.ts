@@ -36,6 +36,8 @@ interface EvaluatedSubmission {
   profileScores: Record<string, number>;
 }
 
+type TestQuestion = TestDefinition['questions'][number];
+
 @Injectable()
 export class ResultsService {
   constructor(
@@ -162,91 +164,14 @@ export class ResultsService {
 
     for (const question of test.questions) {
       const response = answerByQuestion.get(question.id);
-      const isRequired = question.required !== false;
+      const scoredAnswer = this.scoreQuestion(
+        question,
+        response,
+        profileScores,
+      );
 
-      if (!response) {
-        if (isRequired) {
-          throw new BadRequestException(
-            `Falta respuesta para la pregunta ${question.id}`,
-          );
-        }
-        continue;
-      }
-
-      const questionType = question.type ?? QuestionType.SINGLE_CHOICE;
-
-      if (questionType === QuestionType.SINGLE_CHOICE) {
-        const optionId = response.optionId?.trim();
-        if (!optionId) {
-          throw new BadRequestException(
-            `Falta opción para la pregunta ${question.id}`,
-          );
-        }
-
-        const selectedOption = question.options.find(
-          (option: TestOption) => option.id === optionId,
-        );
-
-        if (!selectedOption) {
-          throw new BadRequestException(
-            `Opción inválida para la pregunta ${question.id}`,
-          );
-        }
-
-        const optionValue = selectedOption.value ?? 0;
-        const optionProfileScores = this.toNumberRecord(
-          selectedOption.profileScores,
-        );
-
-        for (const [key, value] of Object.entries(optionProfileScores)) {
-          profileScores[key] = (profileScores[key] ?? 0) + value;
-        }
-
-        scoredAnswers.push({
-          questionId: question.id,
-          optionId: selectedOption.id,
-          value: optionValue,
-        });
-        continue;
-      }
-
-      if (questionType === QuestionType.TEXT) {
-        const textResponse = response.textResponse?.trim();
-
-        if (isRequired && !textResponse) {
-          throw new BadRequestException(
-            `Falta respuesta de texto para la pregunta ${question.id}`,
-          );
-        }
-
-        scoredAnswers.push({
-          questionId: question.id,
-          textResponse,
-          value: 0,
-        });
-        continue;
-      }
-
-      if (questionType === QuestionType.DRAWING) {
-        const drawingDataUrl = response.drawingDataUrl?.trim();
-
-        if (isRequired && !drawingDataUrl) {
-          throw new BadRequestException(
-            `Falta dibujo para la pregunta ${question.id}`,
-          );
-        }
-
-        if (drawingDataUrl && !drawingDataUrl.startsWith('data:image/')) {
-          throw new BadRequestException(
-            `Formato de dibujo inválido en la pregunta ${question.id}`,
-          );
-        }
-
-        scoredAnswers.push({
-          questionId: question.id,
-          drawingDataUrl,
-          value: 0,
-        });
+      if (scoredAnswer) {
+        scoredAnswers.push(scoredAnswer);
       }
     }
 
@@ -268,6 +193,130 @@ export class ResultsService {
       interpretationDescription: interpretation.description,
       profileScores,
     };
+  }
+
+  private scoreQuestion(
+    question: TestQuestion,
+    response: AnswerInputDto | undefined,
+    profileScores: Record<string, number>,
+  ): ScoredAnswer | null {
+    const isRequired = question.required !== false;
+
+    if (!response) {
+      if (isRequired) {
+        throw new BadRequestException(
+          `Falta respuesta para la pregunta ${question.id}`,
+        );
+      }
+
+      return null;
+    }
+
+    const questionType = question.type ?? QuestionType.SINGLE_CHOICE;
+
+    if (questionType === QuestionType.SINGLE_CHOICE) {
+      return this.scoreSingleChoiceQuestion(question, response, profileScores);
+    }
+
+    if (questionType === QuestionType.TEXT) {
+      return this.scoreTextQuestion(question.id, response, isRequired);
+    }
+
+    if (questionType === QuestionType.DRAWING) {
+      return this.scoreDrawingQuestion(question.id, response, isRequired);
+    }
+
+    return null;
+  }
+
+  private scoreSingleChoiceQuestion(
+    question: TestQuestion,
+    response: AnswerInputDto,
+    profileScores: Record<string, number>,
+  ): ScoredAnswer {
+    const optionId = response.optionId?.trim();
+
+    if (!optionId) {
+      throw new BadRequestException(
+        `Falta opción para la pregunta ${question.id}`,
+      );
+    }
+
+    const selectedOption = question.options.find(
+      (option: TestOption) => option.id === optionId,
+    );
+
+    if (!selectedOption) {
+      throw new BadRequestException(
+        `Opción inválida para la pregunta ${question.id}`,
+      );
+    }
+
+    this.mergeProfileScores(
+      profileScores,
+      this.toNumberRecord(selectedOption.profileScores),
+    );
+
+    return {
+      questionId: question.id,
+      optionId: selectedOption.id,
+      value: selectedOption.value ?? 0,
+    };
+  }
+
+  private scoreTextQuestion(
+    questionId: string,
+    response: AnswerInputDto,
+    isRequired: boolean,
+  ): ScoredAnswer {
+    const textResponse = response.textResponse?.trim();
+
+    if (isRequired && !textResponse) {
+      throw new BadRequestException(
+        `Falta respuesta de texto para la pregunta ${questionId}`,
+      );
+    }
+
+    return {
+      questionId,
+      textResponse,
+      value: 0,
+    };
+  }
+
+  private scoreDrawingQuestion(
+    questionId: string,
+    response: AnswerInputDto,
+    isRequired: boolean,
+  ): ScoredAnswer {
+    const drawingDataUrl = response.drawingDataUrl?.trim();
+
+    if (isRequired && !drawingDataUrl) {
+      throw new BadRequestException(
+        `Falta dibujo para la pregunta ${questionId}`,
+      );
+    }
+
+    if (drawingDataUrl && !drawingDataUrl.startsWith('data:image/')) {
+      throw new BadRequestException(
+        `Formato de dibujo inválido en la pregunta ${questionId}`,
+      );
+    }
+
+    return {
+      questionId,
+      drawingDataUrl,
+      value: 0,
+    };
+  }
+
+  private mergeProfileScores(
+    profileScores: Record<string, number>,
+    source: Record<string, number>,
+  ) {
+    for (const [key, value] of Object.entries(source)) {
+      profileScores[key] = (profileScores[key] ?? 0) + value;
+    }
   }
 
   private resolveInterpretation(

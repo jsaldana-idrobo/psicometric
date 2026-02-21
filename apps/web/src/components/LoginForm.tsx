@@ -3,6 +3,18 @@ import { apiFetch } from "../lib/api";
 
 type Mode = "login" | "register";
 
+function getSubmitLabel(mode: Mode, isLoading: boolean): string {
+  if (isLoading) {
+    return "Procesando...";
+  }
+
+  if (mode === "login") {
+    return "Entrar al sistema";
+  }
+
+  return "Crear cuenta";
+}
+
 export function LoginForm() {
   const [mode, setMode] = useState<Mode>("login");
   const [fullName, setFullName] = useState("");
@@ -37,7 +49,10 @@ export function LoginForm() {
         });
       }
 
-      window.location.href = "/";
+      const browserWindow = globalThis.window;
+      if (browserWindow) {
+        browserWindow.location.href = "/";
+      }
     } catch (submitError) {
       if (submitError instanceof Error) {
         setError(submitError.message);
@@ -122,11 +137,7 @@ export function LoginForm() {
             type="submit"
             disabled={isLoading}
           >
-            {isLoading
-              ? "Procesando..."
-              : mode === "login"
-                ? "Entrar al sistema"
-                : "Crear cuenta"}
+            {getSubmitLabel(mode, isLoading)}
           </button>
         </form>
 

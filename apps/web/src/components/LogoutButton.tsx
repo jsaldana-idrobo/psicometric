@@ -1,11 +1,11 @@
-import { apiFetch } from '../lib/api';
+import { apiFetch } from "../lib/api";
 
 export function LogoutButton() {
   const onLogout = async () => {
     try {
-      await apiFetch('/auth/logout', { method: 'POST' });
+      await apiFetch("/auth/logout", { method: "POST" });
     } finally {
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
   };
 

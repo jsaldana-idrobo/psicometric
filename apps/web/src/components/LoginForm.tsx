@@ -1,33 +1,32 @@
-import { useState } from 'react';
-import type { FormEvent } from 'react';
-import { apiFetch } from '../lib/api';
+import { useState } from "react";
+import { apiFetch } from "../lib/api";
 
-type Mode = 'login' | 'register';
+type Mode = "login" | "register";
 
 export function LoginForm() {
-  const [mode, setMode] = useState<Mode>('login');
-  const [fullName, setFullName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [signatureName, setSignatureName] = useState('');
-  const [licenseNumber, setLicenseNumber] = useState('');
-  const [error, setError] = useState('');
+  const [mode, setMode] = useState<Mode>("login");
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [signatureName, setSignatureName] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
-    setError('');
+    setError("");
     setIsLoading(true);
 
     try {
-      if (mode === 'login') {
-        await apiFetch('/auth/login', {
-          method: 'POST',
+      if (mode === "login") {
+        await apiFetch("/auth/login", {
+          method: "POST",
           body: JSON.stringify({ email, password }),
         });
       } else {
-        await apiFetch('/auth/register', {
-          method: 'POST',
+        await apiFetch("/auth/register", {
+          method: "POST",
           body: JSON.stringify({
             fullName,
             email,
@@ -38,12 +37,12 @@ export function LoginForm() {
         });
       }
 
-      window.location.href = '/';
+      window.location.href = "/";
     } catch (submitError) {
       if (submitError instanceof Error) {
         setError(submitError.message);
       } else {
-        setError('No fue posible iniciar sesión');
+        setError("No fue posible iniciar sesión");
       }
     } finally {
       setIsLoading(false);
@@ -53,13 +52,15 @@ export function LoginForm() {
   return (
     <section className="auth-shell">
       <article className="panel auth-card">
-        <h1>{mode === 'login' ? 'Ingreso de psicólogo' : 'Crear usuario inicial'}</h1>
-        <p style={{ color: '#4b5563', margin: '8px 0 16px' }}>
+        <h1>
+          {mode === "login" ? "Ingreso de psicólogo" : "Crear usuario inicial"}
+        </h1>
+        <p style={{ color: "#4b5563", margin: "8px 0 16px" }}>
           Centraliza pacientes, pruebas y reportes psicotécnicos.
         </p>
 
         <form className="grid" onSubmit={handleSubmit}>
-          {mode === 'register' && (
+          {mode === "register" && (
             <label>
               <span className="label">Nombre completo</span>
               <input
@@ -94,7 +95,7 @@ export function LoginForm() {
             />
           </label>
 
-          {mode === 'register' && (
+          {mode === "register" && (
             <>
               <label>
                 <span className="label">Firma profesional (opcional)</span>
@@ -116,24 +117,36 @@ export function LoginForm() {
             </>
           )}
 
-          <button className="btn btn-primary" type="submit" disabled={isLoading}>
+          <button
+            className="btn btn-primary"
+            type="submit"
+            disabled={isLoading}
+          >
             {isLoading
-              ? 'Procesando...'
-              : mode === 'login'
-                ? 'Entrar al sistema'
-                : 'Crear cuenta'}
+              ? "Procesando..."
+              : mode === "login"
+                ? "Entrar al sistema"
+                : "Crear cuenta"}
           </button>
         </form>
 
         {error && <p className="error">{error}</p>}
 
-        <div style={{ marginTop: '14px' }}>
-          {mode === 'login' ? (
-            <button className="btn btn-link" type="button" onClick={() => setMode('register')}>
+        <div style={{ marginTop: "14px" }}>
+          {mode === "login" ? (
+            <button
+              className="btn btn-link"
+              type="button"
+              onClick={() => setMode("register")}
+            >
               Crear usuario inicial
             </button>
           ) : (
-            <button className="btn btn-link" type="button" onClick={() => setMode('login')}>
+            <button
+              className="btn btn-link"
+              type="button"
+              onClick={() => setMode("login")}
+            >
               Ya tengo cuenta
             </button>
           )}

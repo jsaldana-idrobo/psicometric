@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { apiFetch } from '../lib/api';
-import type { TestDefinition, TestQuestion } from '../lib/types';
-import { DrawingInput } from './DrawingInput';
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../lib/api";
+import type { TestDefinition, TestQuestion } from "../lib/types";
+import { DrawingInput } from "./DrawingInput";
 
 interface ApplyTestFormProps {
   patientId: string;
   testId: string;
 }
 
-type Recommendation = '' | 'APTO' | 'NO_APTO' | 'APTO_CON_OBSERVACIONES';
+type Recommendation = "" | "APTO" | "NO_APTO" | "APTO_CON_OBSERVACIONES";
 
 interface LocalAnswer {
   optionId?: string;
@@ -17,18 +16,21 @@ interface LocalAnswer {
   drawingDataUrl?: string;
 }
 
-function isQuestionAnswered(question: TestQuestion, answer?: LocalAnswer): boolean {
+function isQuestionAnswered(
+  question: TestQuestion,
+  answer?: LocalAnswer,
+): boolean {
   if (question.required === false) {
     return true;
   }
 
-  const type = question.type ?? 'single_choice';
+  const type = question.type ?? "single_choice";
 
-  if (type === 'single_choice') {
+  if (type === "single_choice") {
     return Boolean(answer?.optionId);
   }
 
-  if (type === 'text') {
+  if (type === "text") {
     return Boolean(answer?.textResponse?.trim());
   }
 
@@ -38,23 +40,27 @@ function isQuestionAnswered(question: TestQuestion, answer?: LocalAnswer): boole
 export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
   const [test, setTest] = useState<TestDefinition | null>(null);
   const [answers, setAnswers] = useState<Record<string, LocalAnswer>>({});
-  const [observations, setObservations] = useState('');
-  const [finalConclusion, setFinalConclusion] = useState('');
-  const [recommendation, setRecommendation] = useState<Recommendation>('');
+  const [observations, setObservations] = useState("");
+  const [finalConclusion, setFinalConclusion] = useState("");
+  const [recommendation, setRecommendation] = useState<Recommendation>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
 
   useEffect(() => {
     const loadTest = async () => {
       setIsLoading(true);
-      setError('');
+      setError("");
       try {
         const response = await apiFetch<TestDefinition>(`/tests/${testId}`);
         setTest(response);
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar la prueba');
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "No se pudo cargar la prueba",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -64,7 +70,11 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
   }, [testId]);
 
   const requiredCount = useMemo(
-    () => (test ? test.questions.filter((question) => question.required !== false).length : 0),
+    () =>
+      test
+        ? test.questions.filter((question) => question.required !== false)
+            .length
+        : 0,
     [test],
   );
 
@@ -73,22 +83,26 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
       return 0;
     }
 
-    return test.questions.filter((question) => isQuestionAnswered(question, answers[question.id])).length;
+    return test.questions.filter((question) =>
+      isQuestionAnswered(question, answers[question.id]),
+    ).length;
   }, [answers, test]);
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
     if (!test) {
       return;
     }
 
     if (answeredCount !== test.questions.length) {
-      setError('Debes completar todas las preguntas requeridas antes de guardar.');
+      setError(
+        "Debes completar todas las preguntas requeridas antes de guardar.",
+      );
       return;
     }
 
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
     setIsSaving(true);
 
     try {
@@ -102,10 +116,13 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
             drawingDataUrl: answer.drawingDataUrl,
           };
         })
-        .filter((answer) => answer.optionId || answer.textResponse || answer.drawingDataUrl);
+        .filter(
+          (answer) =>
+            answer.optionId || answer.textResponse || answer.drawingDataUrl,
+        );
 
-      await apiFetch('/results', {
-        method: 'POST',
+      await apiFetch("/results", {
+        method: "POST",
         body: JSON.stringify({
           patientId,
           testId,
@@ -116,12 +133,18 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
         }),
       });
 
-      setSuccess('Resultado guardado correctamente. Regresando al expediente...');
+      setSuccess(
+        "Resultado guardado correctamente. Regresando al expediente...",
+      );
       setTimeout(() => {
         window.location.href = `/patients/${patientId}`;
       }, 900);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar el resultado');
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo guardar el resultado",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -138,31 +161,43 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
   return (
     <section className="panel">
       <h2>{test.name}</h2>
-      <p style={{ color: '#4b5563', marginTop: '6px' }}>{test.description}</p>
+      <p style={{ color: "#4b5563", marginTop: "6px" }}>{test.description}</p>
       {test.instructions && (
-        <p style={{ color: '#334155', marginTop: '8px' }}>
+        <p style={{ color: "#334155", marginTop: "8px" }}>
           <strong>Instrucciones:</strong> {test.instructions}
         </p>
       )}
-      <p style={{ color: '#0f766e', marginTop: '6px', fontWeight: 600 }}>
-        Completadas: {answeredCount}/{test.questions.length} (requeridas: {requiredCount})
+      <p style={{ color: "#0f766e", marginTop: "6px", fontWeight: 600 }}>
+        Completadas: {answeredCount}/{test.questions.length} (requeridas:{" "}
+        {requiredCount})
       </p>
 
-      <form className="grid" style={{ marginTop: '14px' }} onSubmit={onSubmit}>
+      <form className="grid" style={{ marginTop: "14px" }} onSubmit={onSubmit}>
         {test.questions.map((question, index) => {
-          const type = question.type ?? 'single_choice';
+          const type = question.type ?? "single_choice";
           const answer = answers[question.id] ?? {};
 
           return (
-            <article key={question.id} className="kpi" style={{ background: '#fff' }}>
+            <article
+              key={question.id}
+              className="kpi"
+              style={{ background: "#fff" }}
+            >
               <p style={{ fontWeight: 700 }}>
                 {index + 1}. {question.text}
               </p>
 
-              {type === 'single_choice' && (
-                <div className="grid" style={{ marginTop: '8px' }}>
+              {type === "single_choice" && (
+                <div className="grid" style={{ marginTop: "8px" }}>
                   {question.options.map((option) => (
-                    <label key={option.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <label
+                      key={option.id}
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                      }}
+                    >
                       <input
                         type="radio"
                         name={question.id}
@@ -184,11 +219,11 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
                 </div>
               )}
 
-              {type === 'text' && (
+              {type === "text" && (
                 <textarea
                   className="textarea"
-                  style={{ marginTop: '8px' }}
-                  value={answer.textResponse ?? ''}
+                  style={{ marginTop: "8px" }}
+                  value={answer.textResponse ?? ""}
                   onChange={(event) =>
                     setAnswers((current) => ({
                       ...current,
@@ -201,8 +236,8 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
                 />
               )}
 
-              {type === 'drawing' && (
-                <div style={{ marginTop: '8px' }}>
+              {type === "drawing" && (
+                <div style={{ marginTop: "8px" }}>
                   <DrawingInput
                     value={answer.drawingDataUrl}
                     onChange={(value) =>
@@ -246,18 +281,22 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
           <select
             className="select"
             value={recommendation}
-            onChange={(event) => setRecommendation(event.target.value as Recommendation)}
+            onChange={(event) =>
+              setRecommendation(event.target.value as Recommendation)
+            }
           >
             <option value="">Sin recomendación</option>
             <option value="APTO">Apto</option>
             <option value="NO_APTO">No apto</option>
-            <option value="APTO_CON_OBSERVACIONES">Apto con observaciones</option>
+            <option value="APTO_CON_OBSERVACIONES">
+              Apto con observaciones
+            </option>
           </select>
         </label>
 
         <div className="actions">
           <button className="btn btn-primary" type="submit" disabled={isSaving}>
-            {isSaving ? 'Guardando...' : 'Guardar resultado'}
+            {isSaving ? "Guardando..." : "Guardar resultado"}
           </button>
           <a className="btn btn-soft" href={`/patients/${patientId}`}>
             Volver al paciente

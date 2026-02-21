@@ -38,7 +38,11 @@ export class AuthService {
       licenseNumber: dto.licenseNumber,
     });
 
-    return this.buildAuthResponse(user.id, user.email, user.fullName);
+    return this.buildAuthResponse(
+      String(user.id),
+      String(user.email),
+      String(user.fullName),
+    );
   }
 
   async login(email: string, password: string) {
@@ -54,7 +58,11 @@ export class AuthService {
       throw new UnauthorizedException('Credenciales inválidas');
     }
 
-    return this.buildAuthResponse(user.id, user.email, user.fullName);
+    return this.buildAuthResponse(
+      String(user.id),
+      String(user.email),
+      String(user.fullName),
+    );
   }
 
   async getProfile(userId: string) {

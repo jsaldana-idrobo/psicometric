@@ -1,5 +1,5 @@
 const API_BASE_URL =
-  import.meta.env.PUBLIC_API_BASE_URL ?? 'http://localhost:4000/api';
+  import.meta.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
 
 class ApiError extends Error {
   status: number;
@@ -15,7 +15,9 @@ async function parseResponse(response: Response) {
     return null;
   }
 
-  const isJson = response.headers.get('content-type')?.includes('application/json');
+  const isJson = response.headers
+    .get("content-type")
+    ?.includes("application/json");
 
   if (!isJson) {
     return null;
@@ -34,20 +36,20 @@ async function request<T>(
 
   if (!response.ok) {
     const message =
-      payload && typeof payload.message === 'string'
+      payload && typeof payload.message === "string"
         ? payload.message
-        : 'Error inesperado al comunicarse con la API';
+        : "Error inesperado al comunicarse con la API";
 
     const error = new ApiError(message, response.status);
 
     if (
-      typeof window !== 'undefined' &&
+      typeof window !== "undefined" &&
       options.redirectOnUnauthorized &&
       response.status === 401 &&
-      path !== '/auth/login' &&
-      path !== '/auth/register'
+      path !== "/auth/login" &&
+      path !== "/auth/register"
     ) {
-      window.location.href = '/login';
+      window.location.href = "/login";
     }
 
     throw error;
@@ -56,14 +58,17 @@ async function request<T>(
   return payload as T;
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+export async function apiFetch<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   return request<T>(
     path,
     {
       ...init,
-      credentials: 'include',
+      credentials: "include",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...(init.headers ?? {}),
       },
     },
@@ -79,9 +84,9 @@ export async function apiFetchPublic<T>(
     path,
     {
       ...init,
-      credentials: 'omit',
+      credentials: "omit",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...(init.headers ?? {}),
       },
     },

@@ -11,7 +11,7 @@ export interface Patient {
   evaluationDate: string;
 }
 
-export type QuestionType = 'single_choice' | 'text' | 'drawing';
+export type QuestionType = "single_choice" | "text" | "drawing";
 
 export interface TestOption {
   id: string;
@@ -41,7 +41,7 @@ export interface TestDefinition {
     label: string;
     description: string;
   }>;
-  scoringMode?: 'range' | 'profile' | 'manual';
+  scoringMode?: "range" | "profile" | "manual";
 }
 
 export interface TestAnswer {
@@ -61,7 +61,7 @@ export interface TestResult {
   answers?: TestAnswer[];
   observations?: string;
   finalConclusion?: string;
-  recommendation?: 'APTO' | 'NO_APTO' | 'APTO_CON_OBSERVACIONES';
+  recommendation?: "APTO" | "NO_APTO" | "APTO_CON_OBSERVACIONES";
   evaluatedAt: string;
   testId:
     | {
@@ -83,7 +83,7 @@ export interface Profile {
 export interface PublicSession {
   id: string;
   token: string;
-  status: 'created' | 'in_progress' | 'submitted' | 'expired';
+  status: "created" | "in_progress" | "submitted" | "expired";
   expiresAt: string;
   startedAt?: string;
   submittedAt?: string;
@@ -107,7 +107,7 @@ export interface PublicSession {
 
 export interface PublicSessionOpen {
   token: string;
-  status: 'created' | 'in_progress' | 'submitted' | 'expired';
+  status: "created" | "in_progress" | "submitted" | "expired";
   expiresAt: string;
   startedAt?: string;
   submittedAt?: string;

@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import type { PointerEvent as ReactPointerEvent } from 'react';
+import { useEffect, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 interface DrawingInputProps {
   value?: string;
@@ -24,23 +24,23 @@ export function DrawingInput({
       return;
     }
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
 
-    context.fillStyle = '#ffffff';
+    context.fillStyle = "#ffffff";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    context.lineCap = 'round';
-    context.lineJoin = 'round';
-    context.strokeStyle = '#0f172a';
+    context.lineCap = "round";
+    context.lineJoin = "round";
+    context.strokeStyle = "#0f172a";
     context.lineWidth = 2.4;
 
     if (value) {
       const image = new Image();
       image.onload = () => {
         context.clearRect(0, 0, canvas.width, canvas.height);
-        context.fillStyle = '#ffffff';
+        context.fillStyle = "#ffffff";
         context.fillRect(0, 0, canvas.width, canvas.height);
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
         setIsLoaded(true);
@@ -72,7 +72,7 @@ export function DrawingInput({
     }
 
     canvas.setPointerCapture(event.pointerId);
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
@@ -93,7 +93,7 @@ export function DrawingInput({
       return;
     }
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
@@ -116,7 +116,7 @@ export function DrawingInput({
     canvas.releasePointerCapture(event.pointerId);
     isDrawingRef.current = false;
 
-    onChange(canvas.toDataURL('image/png'));
+    onChange(canvas.toDataURL("image/png"));
   };
 
   const clear = () => {
@@ -125,31 +125,37 @@ export function DrawingInput({
       return;
     }
 
-    const context = canvas.getContext('2d');
+    const context = canvas.getContext("2d");
     if (!context) {
       return;
     }
 
     context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = '#ffffff';
+    context.fillStyle = "#ffffff";
     context.fillRect(0, 0, canvas.width, canvas.height);
-    onChange('');
+    onChange("");
   };
 
   return (
-    <div className="grid" style={{ gap: '8px' }}>
-      <div style={{ border: '1px solid #cfd8ea', borderRadius: '12px', overflow: 'hidden' }}>
+    <div className="grid" style={{ gap: "8px" }}>
+      <div
+        style={{
+          border: "1px solid #cfd8ea",
+          borderRadius: "12px",
+          overflow: "hidden",
+        }}
+      >
         <canvas
           ref={canvasRef}
           width={width}
           height={height}
           style={{
-            width: '100%',
-            height: 'auto',
-            display: 'block',
-            background: '#ffffff',
-            touchAction: 'none',
-            cursor: 'crosshair',
+            width: "100%",
+            height: "auto",
+            display: "block",
+            background: "#ffffff",
+            touchAction: "none",
+            cursor: "crosshair",
           }}
           onPointerDown={start}
           onPointerMove={draw}
@@ -160,7 +166,12 @@ export function DrawingInput({
       </div>
 
       <div className="actions">
-        <button type="button" className="btn btn-soft" onClick={clear} disabled={!isLoaded}>
+        <button
+          type="button"
+          className="btn btn-soft"
+          onClick={clear}
+          disabled={!isLoaded}
+        >
           Limpiar dibujo
         </button>
       </div>

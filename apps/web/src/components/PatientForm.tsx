@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react';
-import type { FormEvent } from 'react';
-import { apiFetch } from '../lib/api';
-import type { Patient } from '../lib/types';
+import { useEffect, useState } from "react";
+import { apiFetch } from "../lib/api";
+import type { Patient } from "../lib/types";
 
 interface PatientFormProps {
-  mode: 'create' | 'edit';
+  mode: "create" | "edit";
   patientId?: string;
 }
 
@@ -20,14 +19,14 @@ interface PatientPayload {
 }
 
 const emptyPayload: PatientPayload = {
-  fullName: '',
-  documentId: '',
-  dateOfBirth: '',
-  phone: '',
-  email: '',
-  company: '',
-  position: '',
-  evaluationDate: '',
+  fullName: "",
+  documentId: "",
+  dateOfBirth: "",
+  phone: "",
+  email: "",
+  company: "",
+  position: "",
+  evaluationDate: "",
 };
 
 function toInputDate(value: string) {
@@ -36,33 +35,37 @@ function toInputDate(value: string) {
 
 export function PatientForm({ mode, patientId }: PatientFormProps) {
   const [payload, setPayload] = useState<PatientPayload>(emptyPayload);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-  const [isLoading, setIsLoading] = useState(mode === 'edit');
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [isLoading, setIsLoading] = useState(mode === "edit");
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    if (mode !== 'edit' || !patientId) {
+    if (mode !== "edit" || !patientId) {
       return;
     }
 
     const loadPatient = async () => {
       setIsLoading(true);
-      setError('');
+      setError("");
       try {
         const patient = await apiFetch<Patient>(`/patients/${patientId}`);
         setPayload({
           fullName: patient.fullName,
           documentId: patient.documentId,
           dateOfBirth: toInputDate(patient.dateOfBirth),
-          phone: patient.phone ?? '',
-          email: patient.email ?? '',
-          company: patient.company ?? '',
-          position: patient.position ?? '',
+          phone: patient.phone ?? "",
+          email: patient.email ?? "",
+          company: patient.company ?? "",
+          position: patient.position ?? "",
           evaluationDate: toInputDate(patient.evaluationDate),
         });
       } catch (loadError) {
-        setError(loadError instanceof Error ? loadError.message : 'No se pudo cargar el paciente');
+        setError(
+          loadError instanceof Error
+            ? loadError.message
+            : "No se pudo cargar el paciente",
+        );
       } finally {
         setIsLoading(false);
       }
@@ -71,10 +74,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
     void loadPatient();
   }, [mode, patientId]);
 
-  const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
-    setError('');
-    setSuccess('');
+    setError("");
+    setSuccess("");
     setIsSaving(true);
 
     try {
@@ -86,24 +89,28 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
         position: payload.position || undefined,
       };
 
-      if (mode === 'create') {
-        const created = await apiFetch<Patient>('/patients', {
-          method: 'POST',
+      if (mode === "create") {
+        const created = await apiFetch<Patient>("/patients", {
+          method: "POST",
           body: JSON.stringify(requestBody),
         });
-        setSuccess('Paciente creado correctamente. Redirigiendo...');
+        setSuccess("Paciente creado correctamente. Redirigiendo...");
         setTimeout(() => {
           window.location.href = `/patients/${created.id}`;
         }, 600);
       } else {
         await apiFetch<Patient>(`/patients/${patientId}`, {
-          method: 'PATCH',
+          method: "PATCH",
           body: JSON.stringify(requestBody),
         });
-        setSuccess('Paciente actualizado correctamente.');
+        setSuccess("Paciente actualizado correctamente.");
       }
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'No se pudo guardar');
+      setError(
+        submitError instanceof Error
+          ? submitError.message
+          : "No se pudo guardar",
+      );
     } finally {
       setIsSaving(false);
     }
@@ -111,15 +118,19 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
 
   return (
     <section className="panel">
-      <h2>{mode === 'create' ? 'Registrar paciente' : 'Editar paciente'}</h2>
-      <p style={{ marginTop: '6px', color: '#4b5563' }}>
+      <h2>{mode === "create" ? "Registrar paciente" : "Editar paciente"}</h2>
+      <p style={{ marginTop: "6px", color: "#4b5563" }}>
         Completa los campos mínimos para iniciar la evaluación psicotécnica.
       </p>
 
       {isLoading ? (
-        <p style={{ marginTop: '14px' }}>Cargando datos...</p>
+        <p style={{ marginTop: "14px" }}>Cargando datos...</p>
       ) : (
-        <form className="grid" style={{ marginTop: '14px' }} onSubmit={onSubmit}>
+        <form
+          className="grid"
+          style={{ marginTop: "14px" }}
+          onSubmit={onSubmit}
+        >
           <div className="grid grid-2">
             <label>
               <span className="label">Nombre completo *</span>
@@ -128,7 +139,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 required
                 value={payload.fullName}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, fullName: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    fullName: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -140,7 +154,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 required
                 value={payload.documentId}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, documentId: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    documentId: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -153,7 +170,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 required
                 value={payload.dateOfBirth}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, dateOfBirth: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    dateOfBirth: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -166,7 +186,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 required
                 value={payload.evaluationDate}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, evaluationDate: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    evaluationDate: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -177,7 +200,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 className="input"
                 value={payload.phone}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, phone: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    phone: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -189,7 +215,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 type="email"
                 value={payload.email}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, email: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    email: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -200,7 +229,10 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 className="input"
                 value={payload.company}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, company: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    company: event.target.value,
+                  }))
                 }
               />
             </label>
@@ -211,21 +243,33 @@ export function PatientForm({ mode, patientId }: PatientFormProps) {
                 className="input"
                 value={payload.position}
                 onChange={(event) =>
-                  setPayload((current) => ({ ...current, position: event.target.value }))
+                  setPayload((current) => ({
+                    ...current,
+                    position: event.target.value,
+                  }))
                 }
               />
             </label>
           </div>
 
           <div className="actions">
-            <button className="btn btn-primary" type="submit" disabled={isSaving}>
+            <button
+              className="btn btn-primary"
+              type="submit"
+              disabled={isSaving}
+            >
               {isSaving
-                ? 'Guardando...'
-                : mode === 'create'
-                  ? 'Crear paciente'
-                  : 'Guardar cambios'}
+                ? "Guardando..."
+                : mode === "create"
+                  ? "Crear paciente"
+                  : "Guardar cambios"}
             </button>
-            <a className="btn btn-soft" href={mode === 'edit' && patientId ? `/patients/${patientId}` : '/'}>
+            <a
+              className="btn btn-soft"
+              href={
+                mode === "edit" && patientId ? `/patients/${patientId}` : "/"
+              }
+            >
               Cancelar
             </a>
           </div>

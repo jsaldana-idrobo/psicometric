@@ -1,4 +1,4 @@
-import { defineMiddleware } from 'astro:middleware';
+import { defineMiddleware } from "astro:middleware";
 
 // Session access is validated against the API. This keeps deployment flexible
 // when web and API run on different Vercel projects/domains.

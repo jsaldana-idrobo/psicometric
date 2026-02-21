@@ -1,27 +1,27 @@
-import { useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '../lib/api';
-import type { Patient, Profile } from '../lib/types';
-import { LogoutButton } from './LogoutButton';
+import { useEffect, useMemo, useState } from "react";
+import { apiFetch } from "../lib/api";
+import type { Patient, Profile } from "../lib/types";
+import { LogoutButton } from "./LogoutButton";
 
 function formatDate(date: string) {
-  return new Date(date).toLocaleDateString('es-CO');
+  return new Date(date).toLocaleDateString("es-CO");
 }
 
 export function PatientsDashboard() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const loadData = async () => {
     setIsLoading(true);
-    setError('');
+    setError("");
 
     try {
       const [patientsResponse, profileResponse] = await Promise.all([
-        apiFetch<Patient[]>('/patients'),
-        apiFetch<Profile>('/auth/me'),
+        apiFetch<Patient[]>("/patients"),
+        apiFetch<Profile>("/auth/me"),
       ]);
 
       setPatients(patientsResponse);
@@ -30,7 +30,7 @@ export function PatientsDashboard() {
       if (loadError instanceof Error) {
         setError(loadError.message);
       } else {
-        setError('No fue posible cargar los pacientes');
+        setError("No fue posible cargar los pacientes");
       }
     } finally {
       setIsLoading(false);
@@ -51,34 +51,47 @@ export function PatientsDashboard() {
       return (
         patient.fullName.toLowerCase().includes(normalized) ||
         patient.documentId.toLowerCase().includes(normalized) ||
-        (patient.company ?? '').toLowerCase().includes(normalized)
+        (patient.company ?? "").toLowerCase().includes(normalized)
       );
     });
   }, [patients, query]);
 
   const onDelete = async (patientId: string) => {
-    const confirmed = window.confirm('¿Eliminar este paciente y su historial?');
+    const confirmed = window.confirm("¿Eliminar este paciente y su historial?");
 
     if (!confirmed) {
       return;
     }
 
     try {
-      await apiFetch(`/patients/${patientId}`, { method: 'DELETE' });
-      setPatients((current) => current.filter((patient) => patient.id !== patientId));
+      await apiFetch(`/patients/${patientId}`, { method: "DELETE" });
+      setPatients((current) =>
+        current.filter((patient) => patient.id !== patientId),
+      );
     } catch (deleteError) {
-      window.alert(deleteError instanceof Error ? deleteError.message : 'No se pudo eliminar');
+      window.alert(
+        deleteError instanceof Error
+          ? deleteError.message
+          : "No se pudo eliminar",
+      );
     }
   };
 
   return (
-    <div className="grid" style={{ gap: '18px' }}>
+    <div className="grid" style={{ gap: "18px" }}>
       <section className="panel">
-        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            gap: "12px",
+            flexWrap: "wrap",
+          }}
+        >
           <div>
             <h2>Panel de pacientes</h2>
-            <p style={{ color: '#4b5563', marginTop: '6px' }}>
-              {profile ? `Psicólogo: ${profile.fullName}` : 'Sesión activa'}
+            <p style={{ color: "#4b5563", marginTop: "6px" }}>
+              {profile ? `Psicólogo: ${profile.fullName}` : "Sesión activa"}
             </p>
           </div>
           <div className="actions">
@@ -103,7 +116,8 @@ export function PatientsDashboard() {
                 const date = new Date(patient.evaluationDate);
                 const now = new Date();
                 return (
-                  date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
+                  date.getMonth() === now.getMonth() &&
+                  date.getFullYear() === now.getFullYear()
                 );
               }).length
             }
@@ -111,7 +125,13 @@ export function PatientsDashboard() {
         </article>
         <article className="kpi">
           <p className="kpi-label">Empresas activas</p>
-          <p className="kpi-value">{new Set(patients.map((patient) => patient.company).filter(Boolean)).size}</p>
+          <p className="kpi-value">
+            {
+              new Set(
+                patients.map((patient) => patient.company).filter(Boolean),
+              ).size
+            }
+          </p>
         </article>
       </section>
 
@@ -148,15 +168,21 @@ export function PatientsDashboard() {
                   <tr key={patient.id}>
                     <td>{patient.fullName}</td>
                     <td>{patient.documentId}</td>
-                    <td>{patient.company ?? 'N/A'}</td>
-                    <td>{patient.position ?? 'N/A'}</td>
+                    <td>{patient.company ?? "N/A"}</td>
+                    <td>{patient.position ?? "N/A"}</td>
                     <td>{formatDate(patient.evaluationDate)}</td>
                     <td>
                       <div className="actions">
-                        <a className="btn btn-soft" href={`/patients/${patient.id}`}>
+                        <a
+                          className="btn btn-soft"
+                          href={`/patients/${patient.id}`}
+                        >
                           Ver
                         </a>
-                        <a className="btn btn-soft" href={`/patients/${patient.id}/edit`}>
+                        <a
+                          className="btn btn-soft"
+                          href={`/patients/${patient.id}/edit`}
+                        >
                           Editar
                         </a>
                         <button
@@ -176,7 +202,7 @@ export function PatientsDashboard() {
         )}
 
         {!isLoading && filteredPatients.length === 0 && (
-          <p style={{ marginTop: '10px', color: '#4b5563' }}>
+          <p style={{ marginTop: "10px", color: "#4b5563" }}>
             No hay pacientes que coincidan con la búsqueda.
           </p>
         )}

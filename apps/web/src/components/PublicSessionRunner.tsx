@@ -1,11 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
-import { apiFetchPublic } from '../lib/api';
-import type {
-  PublicSessionOpen,
-  TestAnswer,
-  TestQuestion,
-} from '../lib/types';
+import { useEffect, useMemo, useState } from "react";
+import { apiFetchPublic } from "../lib/api";
+import type { PublicSessionOpen, TestAnswer, TestQuestion } from "../lib/types";
 import { DrawingInput } from './DrawingInput';
 
 interface PublicSessionRunnerProps {
@@ -152,7 +147,7 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
     }
   };
 
-  const submit = async (event: FormEvent<HTMLFormElement>) => {
+  const submit = async (event: { preventDefault: () => void }) => {
     event.preventDefault();
     if (!session) {
       return;

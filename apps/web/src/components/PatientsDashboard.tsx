@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
 import type { Patient, Profile } from "../lib/types";
-import { LogoutButton } from "./LogoutButton";
 
 function formatDate(date: string) {
   return new Date(date).toLocaleDateString("es-CO");
@@ -56,6 +55,23 @@ export function PatientsDashboard() {
     });
   }, [patients, query]);
 
+  const evaluationsThisMonth = useMemo(() => {
+    const now = new Date();
+
+    return patients.filter((patient) => {
+      const date = new Date(patient.evaluationDate);
+      return (
+        date.getMonth() === now.getMonth() &&
+        date.getFullYear() === now.getFullYear()
+      );
+    }).length;
+  }, [patients]);
+
+  const activeCompanies = useMemo(() => {
+    return new Set(patients.map((patient) => patient.company).filter(Boolean))
+      .size;
+  }, [patients]);
+
   const onDelete = async (patientId: string) => {
     const confirmed = globalThis.confirm(
       "¿Eliminar este paciente y su historial?",
@@ -80,28 +96,18 @@ export function PatientsDashboard() {
   };
 
   return (
-    <div className="grid" style={{ gap: "18px" }}>
-      <section className="panel">
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            gap: "12px",
-            flexWrap: "wrap",
-          }}
-        >
+    <div className="grid dashboard-stack">
+      <section className="panel dashboard-header">
+        <div className="dashboard-header-content">
           <div>
             <h2>Panel de pacientes</h2>
-            <p style={{ color: "#4b5563", marginTop: "6px" }}>
+            <p className="panel-muted">
               {profile ? `Psicólogo: ${profile.fullName}` : "Sesión activa"}
             </p>
           </div>
-          <div className="actions">
-            <a className="btn btn-primary" href="/patients/new">
-              Registrar paciente
-            </a>
-            <LogoutButton />
-          </div>
+          <a className="btn btn-primary btn-compact" href="/patients/new">
+            Registrar paciente
+          </a>
         </div>
       </section>
 
@@ -112,28 +118,11 @@ export function PatientsDashboard() {
         </article>
         <article className="kpi">
           <p className="kpi-label">Evaluaciones este mes</p>
-          <p className="kpi-value">
-            {
-              patients.filter((patient) => {
-                const date = new Date(patient.evaluationDate);
-                const now = new Date();
-                return (
-                  date.getMonth() === now.getMonth() &&
-                  date.getFullYear() === now.getFullYear()
-                );
-              }).length
-            }
-          </p>
+          <p className="kpi-value">{evaluationsThisMonth}</p>
         </article>
         <article className="kpi">
           <p className="kpi-label">Empresas activas</p>
-          <p className="kpi-value">
-            {
-              new Set(
-                patients.map((patient) => patient.company).filter(Boolean),
-              ).size
-            }
-          </p>
+          <p className="kpi-value">{activeCompanies}</p>
         </article>
       </section>
 
@@ -174,22 +163,22 @@ export function PatientsDashboard() {
                     <td>{patient.position ?? "N/A"}</td>
                     <td>{formatDate(patient.evaluationDate)}</td>
                     <td>
-                      <div className="actions">
+                      <div className="actions actions-tight">
                         <a
-                          className="btn btn-soft"
+                          className="btn btn-soft btn-compact"
                           href={`/patients/${patient.id}`}
                         >
                           Ver
                         </a>
                         <a
-                          className="btn btn-soft"
+                          className="btn btn-soft btn-compact"
                           href={`/patients/${patient.id}/edit`}
                         >
                           Editar
                         </a>
                         <button
                           type="button"
-                          className="btn btn-danger"
+                          className="btn btn-danger btn-compact"
                           onClick={() => onDelete(patient.id)}
                         >
                           Eliminar
@@ -204,7 +193,7 @@ export function PatientsDashboard() {
         )}
 
         {!isLoading && filteredPatients.length === 0 && (
-          <p style={{ marginTop: "10px", color: "#4b5563" }}>
+          <p className="panel-muted search-empty">
             No hay pacientes que coincidan con la búsqueda.
           </p>
         )}

@@ -13,7 +13,6 @@ import { CurrentUser } from '../common/current-user.decorator';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { AUTH_COOKIE_NAME } from './auth.constants';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
 import { AuthService } from './auth.service';
 
 @Controller('auth')
@@ -22,16 +21,6 @@ export class AuthController {
     private readonly authService: AuthService,
     private readonly configService: ConfigService,
   ) {}
-
-  @Post('register')
-  async register(
-    @Body() dto: RegisterDto,
-    @Res({ passthrough: true }) response: Response,
-  ) {
-    const authResponse = await this.authService.register(dto);
-    this.setAuthCookie(response, authResponse.token);
-    return authResponse.user;
-  }
 
   @Post('login')
   @HttpCode(200)

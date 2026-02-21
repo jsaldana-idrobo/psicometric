@@ -1,27 +1,13 @@
 import { useState } from "react";
 import { apiFetch } from "../lib/api";
 
-type Mode = "login" | "register";
-
-function getSubmitLabel(mode: Mode, isLoading: boolean): string {
-  if (isLoading) {
-    return "Procesando...";
-  }
-
-  if (mode === "login") {
-    return "Entrar al sistema";
-  }
-
-  return "Crear cuenta";
+function getSubmitLabel(isLoading: boolean): string {
+  return isLoading ? "Ingresando..." : "Entrar al sistema";
 }
 
 export function LoginForm() {
-  const [mode, setMode] = useState<Mode>("login");
-  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [signatureName, setSignatureName] = useState("");
-  const [licenseNumber, setLicenseNumber] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -31,23 +17,10 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
-      if (mode === "login") {
-        await apiFetch("/auth/login", {
-          method: "POST",
-          body: JSON.stringify({ email, password }),
-        });
-      } else {
-        await apiFetch("/auth/register", {
-          method: "POST",
-          body: JSON.stringify({
-            fullName,
-            email,
-            password,
-            signatureName: signatureName || undefined,
-            licenseNumber: licenseNumber || undefined,
-          }),
-        });
-      }
+      await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
 
       const browserWindow = globalThis.window;
       if (browserWindow) {
@@ -67,26 +40,12 @@ export function LoginForm() {
   return (
     <section className="auth-shell">
       <article className="panel auth-card">
-        <h1>
-          {mode === "login" ? "Ingreso de psicólogo" : "Crear usuario inicial"}
-        </h1>
-        <p style={{ color: "#4b5563", margin: "8px 0 16px" }}>
-          Centraliza pacientes, pruebas y reportes psicotécnicos.
+        <h1>Ingreso de psicólogo</h1>
+        <p className="auth-subtitle">
+          Tu usuario es creado por un administrador del consultorio.
         </p>
 
         <form className="grid" onSubmit={handleSubmit}>
-          {mode === "register" && (
-            <label>
-              <span className="label">Nombre completo</span>
-              <input
-                className="input"
-                required
-                value={fullName}
-                onChange={(event) => setFullName(event.target.value)}
-              />
-            </label>
-          )}
-
           <label>
             <span className="label">Email</span>
             <input
@@ -110,58 +69,16 @@ export function LoginForm() {
             />
           </label>
 
-          {mode === "register" && (
-            <>
-              <label>
-                <span className="label">Firma profesional (opcional)</span>
-                <input
-                  className="input"
-                  value={signatureName}
-                  onChange={(event) => setSignatureName(event.target.value)}
-                />
-              </label>
-
-              <label>
-                <span className="label">Registro profesional (opcional)</span>
-                <input
-                  className="input"
-                  value={licenseNumber}
-                  onChange={(event) => setLicenseNumber(event.target.value)}
-                />
-              </label>
-            </>
-          )}
-
           <button
-            className="btn btn-primary"
+            className="btn btn-primary btn-full"
             type="submit"
             disabled={isLoading}
           >
-            {getSubmitLabel(mode, isLoading)}
+            {getSubmitLabel(isLoading)}
           </button>
         </form>
 
         {error && <p className="error">{error}</p>}
-
-        <div style={{ marginTop: "14px" }}>
-          {mode === "login" ? (
-            <button
-              className="btn btn-link"
-              type="button"
-              onClick={() => setMode("register")}
-            >
-              Crear usuario inicial
-            </button>
-          ) : (
-            <button
-              className="btn btn-link"
-              type="button"
-              onClick={() => setMode("login")}
-            >
-              Ya tengo cuenta
-            </button>
-          )}
-        </div>
       </article>
     </section>
   );

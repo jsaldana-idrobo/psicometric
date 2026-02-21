@@ -57,8 +57,7 @@ async function request<T>(
       browserWindow &&
       options.redirectOnUnauthorized &&
       response.status === 401 &&
-      path !== "/auth/login" &&
-      path !== "/auth/register"
+      path !== "/auth/login"
     ) {
       browserWindow.location.href = "/login";
     }

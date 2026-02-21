@@ -1,13 +1,8 @@
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
-import { RegisterDto } from './dto/register.dto';
 
 @Injectable()
 export class AuthService {
@@ -20,29 +15,6 @@ export class AuthService {
   ) {
     this.jwtExpiresIn =
       this.configService.get<number>('JWT_EXPIRES_IN') ?? 28800;
-  }
-
-  async register(dto: RegisterDto) {
-    const existing = await this.usersService.findByEmail(dto.email);
-    if (existing) {
-      throw new BadRequestException('El email ya está registrado');
-    }
-
-    const passwordHash = await bcrypt.hash(dto.password, 10);
-
-    const user = await this.usersService.create({
-      fullName: dto.fullName,
-      email: dto.email,
-      passwordHash,
-      signatureName: dto.signatureName,
-      licenseNumber: dto.licenseNumber,
-    });
-
-    return this.buildAuthResponse(
-      String(user.id),
-      String(user.email),
-      String(user.fullName),
-    );
   }
 
   async login(email: string, password: string) {

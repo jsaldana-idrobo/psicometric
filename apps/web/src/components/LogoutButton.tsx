@@ -1,6 +1,10 @@
 import { apiFetch } from "../lib/api";
 
-export function LogoutButton() {
+interface LogoutButtonProps {
+  compact?: boolean;
+}
+
+export function LogoutButton({ compact = false }: LogoutButtonProps) {
   const onLogout = async () => {
     try {
       await apiFetch("/auth/logout", { method: "POST" });
@@ -13,7 +17,11 @@ export function LogoutButton() {
   };
 
   return (
-    <button type="button" className="btn btn-soft" onClick={onLogout}>
+    <button
+      type="button"
+      className={`btn btn-soft${compact ? " btn-compact" : ""}`}
+      onClick={onLogout}
+    >
       Cerrar sesión
     </button>
   );

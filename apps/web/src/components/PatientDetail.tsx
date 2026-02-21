@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiDownloadUrl, apiFetch } from '../lib/api';
-import type { Patient, TestDefinition, TestResult } from '../lib/types';
+import type {
+  Patient,
+  PublicSession,
+  TestDefinition,
+  TestResult,
+} from '../lib/types';
 
 interface PatientDetailProps {
   patientId: string;
@@ -27,11 +32,39 @@ function interpretationClass(label: string) {
   return 'badge badge-low';
 }
 
+function sessionStatusBadge(status: PublicSession['status']) {
+  if (status === 'submitted') {
+    return 'badge badge-high';
+  }
+  if (status === 'expired') {
+    return 'badge badge-low';
+  }
+  if (status === 'in_progress') {
+    return 'badge badge-mid';
+  }
+  return 'badge';
+}
+
+function sessionStatusText(status: PublicSession['status']) {
+  if (status === 'submitted') {
+    return 'Enviada';
+  }
+  if (status === 'expired') {
+    return 'Expirada';
+  }
+  if (status === 'in_progress') {
+    return 'En progreso';
+  }
+  return 'Creada';
+}
+
 export function PatientDetail({ patientId }: PatientDetailProps) {
   const [patient, setPatient] = useState<Patient | null>(null);
   const [tests, setTests] = useState<TestDefinition[]>([]);
   const [results, setResults] = useState<TestResult[]>([]);
+  const [sessions, setSessions] = useState<PublicSession[]>([]);
   const [edits, setEdits] = useState<Record<string, ResultEdit>>({});
+  const [linkLoadingByTest, setLinkLoadingByTest] = useState<Record<string, boolean>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -40,15 +73,18 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
     setError('');
 
     try {
-      const [patientResponse, testsResponse, resultsResponse] = await Promise.all([
-        apiFetch<Patient>(`/patients/${patientId}`),
-        apiFetch<TestDefinition[]>('/tests'),
-        apiFetch<TestResult[]>(`/results/patient/${patientId}`),
-      ]);
+      const [patientResponse, testsResponse, resultsResponse, sessionsResponse] =
+        await Promise.all([
+          apiFetch<Patient>(`/patients/${patientId}`),
+          apiFetch<TestDefinition[]>('/tests'),
+          apiFetch<TestResult[]>(`/results/patient/${patientId}`),
+          apiFetch<PublicSession[]>(`/public-sessions/patient/${patientId}`),
+        ]);
 
       setPatient(patientResponse);
       setTests(testsResponse);
       setResults(resultsResponse);
+      setSessions(sessionsResponse);
 
       const initialEdits: Record<string, ResultEdit> = {};
       for (const result of resultsResponse) {
@@ -91,9 +127,48 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
       setResults((current) =>
         current.map((result) => (result._id === resultId ? updated : result)),
       );
-      window.alert('Notas actualizadas');
+      window.alert('Observaciones actualizadas');
     } catch (saveError) {
       window.alert(saveError instanceof Error ? saveError.message : 'No se pudo actualizar');
+    }
+  };
+
+  const createPublicLink = async (testId: string) => {
+    setLinkLoadingByTest((current) => ({ ...current, [testId]: true }));
+
+    try {
+      const created = await apiFetch<{ publicUrl: string }>('/public-sessions', {
+        method: 'POST',
+        body: JSON.stringify({ patientId, testId }),
+      });
+
+      const sessionsResponse = await apiFetch<PublicSession[]>(
+        `/public-sessions/patient/${patientId}`,
+      );
+      setSessions(sessionsResponse);
+
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(created.publicUrl);
+      }
+
+      window.alert('Enlace generado y copiado al portapapeles');
+    } catch (linkError) {
+      window.alert(
+        linkError instanceof Error
+          ? linkError.message
+          : 'No se pudo generar el enlace público',
+      );
+    } finally {
+      setLinkLoadingByTest((current) => ({ ...current, [testId]: false }));
+    }
+  };
+
+  const copySessionLink = async (session: PublicSession) => {
+    try {
+      await navigator.clipboard.writeText(session.publicUrl);
+      window.alert('Enlace copiado');
+    } catch {
+      window.alert('No se pudo copiar el enlace');
     }
   };
 
@@ -144,7 +219,7 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
       <section className="panel">
         <h3>Aplicar prueba</h3>
         <p style={{ marginTop: '6px', color: '#4b5563' }}>
-          Flujo en 3 clics: abrir prueba, responder, guardar resultado.
+          Puedes aplicar directo o enviar un enlace abierto al paciente.
         </p>
 
         <div className="grid grid-2" style={{ marginTop: '12px' }}>
@@ -155,12 +230,62 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
               <p style={{ fontSize: '0.9rem', color: '#4b5563' }}>{test.description}</p>
               <div className="actions" style={{ marginTop: '8px' }}>
                 <a className="btn btn-primary" href={`/patients/${patientId}/tests/${test._id}`}>
-                  Aplicar prueba
+                  Aplicar ahora
                 </a>
+                <button
+                  type="button"
+                  className="btn btn-soft"
+                  onClick={() => createPublicLink(test._id)}
+                  disabled={Boolean(linkLoadingByTest[test._id])}
+                >
+                  {linkLoadingByTest[test._id] ? 'Generando...' : 'Generar link paciente'}
+                </button>
               </div>
             </article>
           ))}
         </div>
+      </section>
+
+      <section className="panel">
+        <h3>Sesiones por enlace</h3>
+        {sessions.length === 0 ? (
+          <p style={{ marginTop: '10px', color: '#4b5563' }}>
+            Aún no hay enlaces creados para este paciente.
+          </p>
+        ) : (
+          <div className="grid" style={{ marginTop: '12px' }}>
+            {sessions.map((session) => {
+              const testName =
+                typeof session.testId === 'string'
+                  ? 'Prueba'
+                  : session.testId.name;
+
+              return (
+                <article key={session.id} className="kpi" style={{ background: '#fff' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+                    <strong>{testName}</strong>
+                    <span className={sessionStatusBadge(session.status)}>
+                      {sessionStatusText(session.status)}
+                    </span>
+                  </div>
+
+                  <p style={{ marginTop: '6px', color: '#374151' }}>
+                    Expira: {asDate(session.expiresAt)}
+                  </p>
+
+                  <div className="actions" style={{ marginTop: '8px' }}>
+                    <a className="btn btn-soft" href={session.publicUrl} target="_blank" rel="noreferrer">
+                      Abrir link
+                    </a>
+                    <button type="button" className="btn btn-soft" onClick={() => copySessionLink(session)}>
+                      Copiar link
+                    </button>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
       </section>
 
       <section className="panel">

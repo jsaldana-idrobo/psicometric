@@ -1,0 +1,20 @@
+---
+import { PublicSessionRunner } from '../../components/PublicSessionRunner';
+import PublicLayout from '../../layouts/PublicLayout.astro';
+
+export const prerender = false;
+
+const { token } = Astro.params;
+
+if (!token) {
+  throw new Error('Token de sesión requerido');
+}
+---
+
+<PublicLayout title="Aplicación de prueba | Psicometric">
+  <main class="auth-shell" style="align-items: start;">
+    <section class="auth-card" style="width: min(980px, 100%); padding: 0;">
+      <PublicSessionRunner token={token} client:load />
+    </section>
+  </main>
+</PublicLayout>

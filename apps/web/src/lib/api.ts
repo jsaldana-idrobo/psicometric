@@ -24,16 +24,12 @@ async function parseResponse(response: Response) {
   return response.json();
 }
 
-export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...init,
-    credentials: 'include',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
-    },
-  });
-
+async function request<T>(
+  path: string,
+  init: RequestInit,
+  options: { redirectOnUnauthorized: boolean },
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, init);
   const payload = await parseResponse(response);
 
   if (!response.ok) {
@@ -46,6 +42,7 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 
     if (
       typeof window !== 'undefined' &&
+      options.redirectOnUnauthorized &&
       response.status === 401 &&
       path !== '/auth/login' &&
       path !== '/auth/register'
@@ -57,6 +54,39 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
   }
 
   return payload as T;
+}
+
+export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return request<T>(
+    path,
+    {
+      ...init,
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
+    },
+    { redirectOnUnauthorized: true },
+  );
+}
+
+export async function apiFetchPublic<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  return request<T>(
+    path,
+    {
+      ...init,
+      credentials: 'omit',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
+    },
+    { redirectOnUnauthorized: false },
+  );
 }
 
 export function apiDownloadUrl(path: string): string {

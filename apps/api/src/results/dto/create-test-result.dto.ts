@@ -14,8 +14,17 @@ class AnswerDto {
   @IsString()
   questionId!: string;
 
+  @IsOptional()
   @IsString()
-  optionId!: string;
+  optionId?: string;
+
+  @IsOptional()
+  @IsString()
+  textResponse?: string;
+
+  @IsOptional()
+  @IsString()
+  drawingDataUrl?: string;
 }
 
 export class CreateTestResultDto {
@@ -47,3 +56,5 @@ export class CreateTestResultDto {
   @IsDateString()
   evaluatedAt?: string;
 }
+
+export type AnswerInputDto = AnswerDto;

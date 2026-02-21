@@ -11,15 +11,20 @@ export interface Patient {
   evaluationDate: string;
 }
 
+export type QuestionType = 'single_choice' | 'text' | 'drawing';
+
 export interface TestOption {
   id: string;
   text: string;
   value: number;
+  profileScores?: Record<string, number>;
 }
 
 export interface TestQuestion {
   id: string;
   text: string;
+  type?: QuestionType;
+  required?: boolean;
   options: TestOption[];
 }
 
@@ -28,6 +33,7 @@ export interface TestDefinition {
   name: string;
   category: string;
   description: string;
+  instructions?: string;
   questions: TestQuestion[];
   interpretationRanges: Array<{
     min: number;
@@ -35,6 +41,15 @@ export interface TestDefinition {
     label: string;
     description: string;
   }>;
+  scoringMode?: 'range' | 'profile' | 'manual';
+}
+
+export interface TestAnswer {
+  questionId: string;
+  optionId?: string;
+  textResponse?: string;
+  drawingDataUrl?: string;
+  value?: number;
 }
 
 export interface TestResult {
@@ -42,6 +57,8 @@ export interface TestResult {
   totalScore: number;
   interpretationLabel: string;
   interpretationDescription: string;
+  profileScores?: Record<string, number>;
+  answers?: TestAnswer[];
   observations?: string;
   finalConclusion?: string;
   recommendation?: 'APTO' | 'NO_APTO' | 'APTO_CON_OBSERVACIONES';
@@ -61,4 +78,42 @@ export interface Profile {
   email: string;
   signatureName?: string;
   licenseNumber?: string;
+}
+
+export interface PublicSession {
+  id: string;
+  token: string;
+  status: 'created' | 'in_progress' | 'submitted' | 'expired';
+  expiresAt: string;
+  startedAt?: string;
+  submittedAt?: string;
+  publicUrl: string;
+  testId:
+    | string
+    | {
+        _id: string;
+        name: string;
+        category: string;
+      };
+  resultId?:
+    | string
+    | {
+        _id: string;
+        totalScore: number;
+        interpretationLabel: string;
+        evaluatedAt: string;
+      };
+}
+
+export interface PublicSessionOpen {
+  token: string;
+  status: 'created' | 'in_progress' | 'submitted' | 'expired';
+  expiresAt: string;
+  startedAt?: string;
+  submittedAt?: string;
+  patient: {
+    fullName: string;
+  };
+  test: TestDefinition;
+  answers: TestAnswer[];
 }

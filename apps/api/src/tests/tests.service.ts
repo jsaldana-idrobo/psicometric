@@ -30,6 +30,21 @@ export class TestsService implements OnModuleInit {
         },
       })),
     );
+
+    await this.testModel
+      .updateMany(
+        {
+          name: {
+            $nin: defaultTests.map((test) => test.name),
+          },
+        },
+        {
+          $set: {
+            active: false,
+          },
+        },
+      )
+      .exec();
   }
 
   async findAll() {

@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { apiFetch } from '../lib/api';
-import type { TestDefinition } from '../lib/types';
+import type { TestDefinition, TestQuestion } from '../lib/types';
+import { DrawingInput } from './DrawingInput';
 
 interface ApplyTestFormProps {
   patientId: string;
@@ -10,9 +11,33 @@ interface ApplyTestFormProps {
 
 type Recommendation = '' | 'APTO' | 'NO_APTO' | 'APTO_CON_OBSERVACIONES';
 
+interface LocalAnswer {
+  optionId?: string;
+  textResponse?: string;
+  drawingDataUrl?: string;
+}
+
+function isQuestionAnswered(question: TestQuestion, answer?: LocalAnswer): boolean {
+  if (question.required === false) {
+    return true;
+  }
+
+  const type = question.type ?? 'single_choice';
+
+  if (type === 'single_choice') {
+    return Boolean(answer?.optionId);
+  }
+
+  if (type === 'text') {
+    return Boolean(answer?.textResponse?.trim());
+  }
+
+  return Boolean(answer?.drawingDataUrl);
+}
+
 export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
   const [test, setTest] = useState<TestDefinition | null>(null);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [answers, setAnswers] = useState<Record<string, LocalAnswer>>({});
   const [observations, setObservations] = useState('');
   const [finalConclusion, setFinalConclusion] = useState('');
   const [recommendation, setRecommendation] = useState<Recommendation>('');
@@ -38,10 +63,18 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     void loadTest();
   }, [testId]);
 
-  const answeredCount = useMemo(
-    () => Object.values(answers).filter(Boolean).length,
-    [answers],
+  const requiredCount = useMemo(
+    () => (test ? test.questions.filter((question) => question.required !== false).length : 0),
+    [test],
   );
+
+  const answeredCount = useMemo(() => {
+    if (!test) {
+      return 0;
+    }
+
+    return test.questions.filter((question) => isQuestionAnswered(question, answers[question.id])).length;
+  }, [answers, test]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -50,7 +83,7 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     }
 
     if (answeredCount !== test.questions.length) {
-      setError('Debes responder todas las preguntas antes de guardar.');
+      setError('Debes completar todas las preguntas requeridas antes de guardar.');
       return;
     }
 
@@ -59,15 +92,24 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     setIsSaving(true);
 
     try {
+      const payloadAnswers = test.questions
+        .map((question) => {
+          const answer = answers[question.id] ?? {};
+          return {
+            questionId: question.id,
+            optionId: answer.optionId,
+            textResponse: answer.textResponse,
+            drawingDataUrl: answer.drawingDataUrl,
+          };
+        })
+        .filter((answer) => answer.optionId || answer.textResponse || answer.drawingDataUrl);
+
       await apiFetch('/results', {
         method: 'POST',
         body: JSON.stringify({
           patientId,
           testId,
-          answers: test.questions.map((question) => ({
-            questionId: question.id,
-            optionId: answers[question.id],
-          })),
+          answers: payloadAnswers,
           observations: observations || undefined,
           finalConclusion: finalConclusion || undefined,
           recommendation: recommendation || undefined,
@@ -97,38 +139,87 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     <section className="panel">
       <h2>{test.name}</h2>
       <p style={{ color: '#4b5563', marginTop: '6px' }}>{test.description}</p>
+      {test.instructions && (
+        <p style={{ color: '#334155', marginTop: '8px' }}>
+          <strong>Instrucciones:</strong> {test.instructions}
+        </p>
+      )}
       <p style={{ color: '#0f766e', marginTop: '6px', fontWeight: 600 }}>
-        Respuestas completadas: {answeredCount}/{test.questions.length}
+        Completadas: {answeredCount}/{test.questions.length} (requeridas: {requiredCount})
       </p>
 
       <form className="grid" style={{ marginTop: '14px' }} onSubmit={onSubmit}>
-        {test.questions.map((question, index) => (
-          <article key={question.id} className="kpi" style={{ background: '#fff' }}>
-            <p style={{ fontWeight: 700 }}>
-              {index + 1}. {question.text}
-            </p>
+        {test.questions.map((question, index) => {
+          const type = question.type ?? 'single_choice';
+          const answer = answers[question.id] ?? {};
 
-            <div className="grid" style={{ marginTop: '8px' }}>
-              {question.options.map((option) => (
-                <label key={option.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <input
-                    type="radio"
-                    name={question.id}
-                    value={option.id}
-                    checked={answers[question.id] === option.id}
-                    onChange={() =>
+          return (
+            <article key={question.id} className="kpi" style={{ background: '#fff' }}>
+              <p style={{ fontWeight: 700 }}>
+                {index + 1}. {question.text}
+              </p>
+
+              {type === 'single_choice' && (
+                <div className="grid" style={{ marginTop: '8px' }}>
+                  {question.options.map((option) => (
+                    <label key={option.id} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="radio"
+                        name={question.id}
+                        value={option.id}
+                        checked={answer.optionId === option.id}
+                        onChange={() =>
+                          setAnswers((current) => ({
+                            ...current,
+                            [question.id]: {
+                              ...current[question.id],
+                              optionId: option.id,
+                            },
+                          }))
+                        }
+                      />
+                      <span>{option.text}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {type === 'text' && (
+                <textarea
+                  className="textarea"
+                  style={{ marginTop: '8px' }}
+                  value={answer.textResponse ?? ''}
+                  onChange={(event) =>
+                    setAnswers((current) => ({
+                      ...current,
+                      [question.id]: {
+                        ...current[question.id],
+                        textResponse: event.target.value,
+                      },
+                    }))
+                  }
+                />
+              )}
+
+              {type === 'drawing' && (
+                <div style={{ marginTop: '8px' }}>
+                  <DrawingInput
+                    value={answer.drawingDataUrl}
+                    onChange={(value) =>
                       setAnswers((current) => ({
                         ...current,
-                        [question.id]: option.id,
+                        [question.id]: {
+                          ...current[question.id],
+                          drawingDataUrl: value,
+                        },
                       }))
                     }
                   />
-                  <span>{option.text}</span>
-                </label>
-              ))}
-            </div>
-          </article>
-        ))}
+                </div>
+              )}
+            </article>
+          );
+        })}
 
         <div className="grid grid-2">
           <label>

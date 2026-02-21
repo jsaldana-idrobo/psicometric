@@ -12,11 +12,17 @@ export class AnswerItem {
   @Prop({ required: true })
   questionId!: string;
 
-  @Prop({ required: true })
-  optionId!: string;
+  @Prop()
+  optionId?: string;
 
-  @Prop({ required: true })
+  @Prop({ default: 0 })
   value!: number;
+
+  @Prop()
+  textResponse?: string;
+
+  @Prop()
+  drawingDataUrl?: string;
 }
 
 const AnswerItemSchema = SchemaFactory.createForClass(AnswerItem);
@@ -43,6 +49,9 @@ export class TestResult {
   @Prop({ required: true })
   totalScore!: number;
 
+  @Prop({ type: Map, of: Number, default: {} })
+  profileScores?: Record<string, number>;
+
   @Prop({ required: true })
   interpretationLabel!: string;
 
@@ -60,6 +69,9 @@ export class TestResult {
 
   @Prop({ required: true })
   evaluatedAt!: Date;
+
+  @Prop({ type: Types.ObjectId })
+  sourceSessionId?: Types.ObjectId;
 }
 
 export const TestResultSchema = SchemaFactory.createForClass(TestResult);

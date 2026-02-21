@@ -22,7 +22,10 @@ function hasSessionCookie(request: Request): boolean {
     .some((cookie) => cookie.trim().startsWith(`${AUTH_COOKIE_NAME}=`));
 }
 
-async function hasValidSession(request: Request, origin: string): Promise<boolean> {
+async function hasValidSession(
+  request: Request,
+  origin: string,
+): Promise<boolean> {
   const cookieHeader = request.headers.get("cookie");
 
   if (!cookieHeader) {

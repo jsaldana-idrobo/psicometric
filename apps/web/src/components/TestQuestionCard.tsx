@@ -41,18 +41,25 @@ export function TestQuestionCard({
   return (
     <article className="kpi" style={{ background: "#fff" }}>
       {pairedAffirmation ? (
-        <div>
-          <p style={{ fontWeight: 700 }}>{index + 1}.</p>
-          <div className="paired-question-grid">
-            <div className="paired-question-item">
-              <p className="paired-question-label">Afirmación izquierda:</p>
-              <p className="paired-question-text">{pairedAffirmation.left}</p>
-            </div>
-            <div className="paired-question-item">
-              <p className="paired-question-label">Afirmación derecha:</p>
-              <p className="paired-question-text">{pairedAffirmation.right}</p>
-            </div>
-          </div>
+        <div className="paired-question">
+          <p className="paired-question-inline">
+            <span className="paired-question-index">{index + 1}.</span>
+            <span className="paired-question-side">
+              <span className="paired-question-tag">Izquierda</span>
+              <span className="paired-question-copy">
+                {pairedAffirmation.left}
+              </span>
+            </span>
+            <span aria-hidden className="paired-question-separator">
+              •
+            </span>
+            <span className="paired-question-side">
+              <span className="paired-question-tag">Derecha</span>
+              <span className="paired-question-copy">
+                {pairedAffirmation.right}
+              </span>
+            </span>
+          </p>
         </div>
       ) : (
         <p style={{ fontWeight: 700 }}>

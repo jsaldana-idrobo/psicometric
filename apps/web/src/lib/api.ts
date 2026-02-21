@@ -1,7 +1,9 @@
-const DEFAULT_API_BASE_URL =
-  import.meta.env.DEV ? "http://localhost:4000/api" : "/api";
+const DEFAULT_API_BASE_URL = import.meta.env.DEV
+  ? "http://localhost:4000/api"
+  : "/api";
 
-const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
+const API_BASE_URL =
+  import.meta.env.PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
 class ApiError extends Error {
   status: number;

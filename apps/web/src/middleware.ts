@@ -22,20 +22,46 @@ function hasSessionCookie(request: Request): boolean {
     .some((cookie) => cookie.trim().startsWith(`${AUTH_COOKIE_NAME}=`));
 }
 
-export const onRequest = defineMiddleware((context, next) => {
-  const { pathname } = context.url;
+async function hasValidSession(request: Request, origin: string): Promise<boolean> {
+  const cookieHeader = request.headers.get("cookie");
+
+  if (!cookieHeader) {
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${origin}/api/auth/me`, {
+      headers: { cookie: cookieHeader },
+    });
+
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export const onRequest = defineMiddleware(async (context, next) => {
+  const { pathname, origin } = context.url;
 
   if (isStaticAsset(pathname) || pathname.startsWith("/api/")) {
     return next();
   }
 
-  if (isPublicRoute(pathname)) {
-    // Always allow access to login/session pages. If a token is stale,
-    // forcing redirects here can create loops between / and /login.
+  const hasCookie = hasSessionCookie(context.request);
+
+  if (pathname === "/login") {
+    if (hasCookie && (await hasValidSession(context.request, origin))) {
+      return context.redirect("/");
+    }
+
     return next();
   }
 
-  if (!hasSessionCookie(context.request)) {
+  if (isPublicRoute(pathname)) {
+    return next();
+  }
+
+  if (!hasCookie) {
     return context.redirect("/login");
   }
 

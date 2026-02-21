@@ -38,7 +38,19 @@ async function parseResponse(response: Response) {
 
 function withJsonHeaders(init?: RequestInit): RequestInit {
   const headers = new Headers(init?.headers);
-  headers.set("Content-Type", "application/json");
+
+  // Set JSON content type only when sending a non-FormData body.
+  const hasBody = init?.body !== undefined && init?.body !== null;
+  const isFormData =
+    typeof FormData !== "undefined" && init?.body instanceof FormData;
+
+  if (hasBody && !isFormData && !headers.has("Content-Type")) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  if (!headers.has("Accept")) {
+    headers.set("Accept", "application/json");
+  }
 
   return {
     ...init,

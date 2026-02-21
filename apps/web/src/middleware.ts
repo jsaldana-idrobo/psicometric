@@ -29,17 +29,13 @@ export const onRequest = defineMiddleware((context, next) => {
     return next();
   }
 
-  const isAuthenticated = hasSessionCookie(context.request);
-
   if (isPublicRoute(pathname)) {
-    if (pathname === "/login" && isAuthenticated) {
-      return context.redirect("/");
-    }
-
+    // Always allow access to login/session pages. If a token is stale,
+    // forcing redirects here can create loops between / and /login.
     return next();
   }
 
-  if (!isAuthenticated) {
+  if (!hasSessionCookie(context.request)) {
     return context.redirect("/login");
   }
 

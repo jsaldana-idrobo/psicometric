@@ -84,19 +84,6 @@ a {
   gap: 10px;
 }
 
-.nav-link {
-  border: 1px solid rgba(255, 255, 255, 0.38);
-  border-radius: 999px;
-  padding: 8px 14px;
-  font-size: 0.84rem;
-  font-weight: 600;
-  transition: background-color 0.2s ease;
-}
-
-.nav-link:hover {
-  background: rgba(255, 255, 255, 0.14);
-}
-
 .page-content {
   margin-top: 20px;
 }

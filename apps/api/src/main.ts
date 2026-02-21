@@ -5,7 +5,9 @@ import { AppModule } from './app.module';
 
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:4321';
 
-void NestFactory.create(AppModule).then(async (app) => {
+(async () => {
+  const app = await NestFactory.create(AppModule);
+
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   app.useGlobalPipes(
@@ -23,4 +25,7 @@ void NestFactory.create(AppModule).then(async (app) => {
   });
 
   await app.listen(process.env.PORT ?? 4000);
+})().catch((error: unknown) => {
+  console.error('Error starting API application', error);
+  process.exitCode = 1;
 });

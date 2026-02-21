@@ -33,7 +33,7 @@ function readOptionalString(
   }
 
   if (typeof value !== 'string') {
-    throw new Error(`Environment variable ${key} must be a string`);
+    throw new TypeError(`Environment variable ${key} must be a string`);
   }
 
   return value;
@@ -53,7 +53,7 @@ function readNumber(
   const parsed = Number(value);
 
   if (!Number.isFinite(parsed)) {
-    throw new Error(`Environment variable ${key} must be a valid number`);
+    throw new TypeError(`Environment variable ${key} must be a valid number`);
   }
 
   return parsed;

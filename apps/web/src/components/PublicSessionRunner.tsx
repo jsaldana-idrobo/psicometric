@@ -1,46 +1,17 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetchPublic } from "../lib/api";
-import type { PublicSessionOpen, TestAnswer, TestQuestion } from "../lib/types";
-import { DrawingInput } from "./DrawingInput";
+import type { PublicSessionOpen } from "../lib/types";
+import {
+  buildPayloadAnswers,
+  isQuestionAnswered,
+  mapSavedAnswersByQuestion,
+  type LocalAnswer,
+  type LocalAnswerMap,
+} from "../lib/test-session";
+import { TestQuestionCard } from "./TestQuestionCard";
 
 interface PublicSessionRunnerProps {
   readonly token: string;
-}
-
-interface LocalAnswer {
-  optionId?: string;
-  textResponse?: string;
-  drawingDataUrl?: string;
-}
-
-interface SessionQuestionCardProps {
-  readonly question: TestQuestion;
-  readonly index: number;
-  readonly answer: LocalAnswer;
-  readonly onOptionChange: (optionId: string) => void;
-  readonly onTextChange: (value: string) => void;
-  readonly onDrawingChange: (value: string) => void;
-}
-
-function isQuestionAnswered(
-  question: TestQuestion,
-  answer?: LocalAnswer,
-): boolean {
-  if (question.required === false) {
-    return true;
-  }
-
-  const type = question.type ?? "single_choice";
-
-  if (type === "single_choice") {
-    return Boolean(answer?.optionId);
-  }
-
-  if (type === "text") {
-    return Boolean(answer?.textResponse?.trim());
-  }
-
-  return Boolean(answer?.drawingDataUrl);
 }
 
 function asDate(value?: string) {
@@ -51,66 +22,9 @@ function asDate(value?: string) {
   return new Date(value).toLocaleString("es-CO");
 }
 
-function SessionQuestionCard({
-  question,
-  index,
-  answer,
-  onOptionChange,
-  onTextChange,
-  onDrawingChange,
-}: SessionQuestionCardProps) {
-  const type = question.type ?? "single_choice";
-
-  return (
-    <article className="kpi" style={{ background: "#fff" }}>
-      <p style={{ fontWeight: 700 }}>
-        {index + 1}. {question.text}
-      </p>
-
-      {type === "single_choice" && (
-        <div className="grid" style={{ marginTop: "8px" }}>
-          {question.options.map((option) => (
-            <label
-              key={option.id}
-              style={{ display: "flex", gap: "8px", alignItems: "center" }}
-            >
-              <input
-                type="radio"
-                name={question.id}
-                value={option.id}
-                checked={answer.optionId === option.id}
-                onChange={() => onOptionChange(option.id)}
-              />
-              <span>{option.text}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {type === "text" && (
-        <textarea
-          className="textarea"
-          style={{ marginTop: "8px" }}
-          value={answer.textResponse ?? ""}
-          onChange={(event) => onTextChange(event.target.value)}
-        />
-      )}
-
-      {type === "drawing" && (
-        <div style={{ marginTop: "8px" }}>
-          <DrawingInput
-            value={answer.drawingDataUrl}
-            onChange={onDrawingChange}
-          />
-        </div>
-      )}
-    </article>
-  );
-}
-
 export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
   const [session, setSession] = useState<PublicSessionOpen | null>(null);
-  const [answers, setAnswers] = useState<Record<string, LocalAnswer>>({});
+  const [answers, setAnswers] = useState<LocalAnswerMap>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -127,17 +41,7 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
           `/public-sessions/open/${token}`,
         );
         setSession(response);
-
-        const mappedAnswers: Record<string, LocalAnswer> = {};
-        for (const answer of response.answers) {
-          mappedAnswers[answer.questionId] = {
-            optionId: answer.optionId,
-            textResponse: answer.textResponse,
-            drawingDataUrl: answer.drawingDataUrl,
-          };
-        }
-
-        setAnswers(mappedAnswers);
+        setAnswers(mapSavedAnswersByQuestion(response.answers));
       } catch (loadError) {
         setError(
           loadError instanceof Error
@@ -172,25 +76,12 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
     ).length;
   }, [answers, session]);
 
-  const payloadAnswers = useMemo<TestAnswer[]>(() => {
+  const payloadAnswers = useMemo(() => {
     if (!session) {
       return [];
     }
 
-    return session.test.questions
-      .map((question) => {
-        const answer = answers[question.id] ?? {};
-        return {
-          questionId: question.id,
-          optionId: answer.optionId,
-          textResponse: answer.textResponse,
-          drawingDataUrl: answer.drawingDataUrl,
-        };
-      })
-      .filter(
-        (answer) =>
-          answer.optionId || answer.textResponse || answer.drawingDataUrl,
-      );
+    return buildPayloadAnswers(session.test.questions, answers);
   }, [answers, session]);
 
   const updateAnswer = (questionId: string, patch: Partial<LocalAnswer>) => {
@@ -325,27 +216,15 @@ export function PublicSessionRunner({ token }: PublicSessionRunnerProps) {
       </p>
 
       <form className="grid" style={{ marginTop: "14px" }} onSubmit={submit}>
-        {session.test.questions.map((question, index) => {
-          const answer = answers[question.id] ?? {};
-
-          return (
-            <SessionQuestionCard
-              key={question.id}
-              question={question}
-              index={index}
-              answer={answer}
-              onOptionChange={(optionId) =>
-                updateAnswer(question.id, { optionId })
-              }
-              onTextChange={(value) =>
-                updateAnswer(question.id, { textResponse: value })
-              }
-              onDrawingChange={(value) =>
-                updateAnswer(question.id, { drawingDataUrl: value })
-              }
-            />
-          );
-        })}
+        {session.test.questions.map((question, index) => (
+          <TestQuestionCard
+            key={question.id}
+            question={question}
+            index={index}
+            answer={answers[question.id] ?? {}}
+            onAnswerChange={(patch) => updateAnswer(question.id, patch)}
+          />
+        ))}
 
         <div className="actions">
           <button

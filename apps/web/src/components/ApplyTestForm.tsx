@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { apiFetch } from "../lib/api";
-import type { TestDefinition, TestQuestion } from "../lib/types";
-import { DrawingInput } from "./DrawingInput";
+import type { TestDefinition } from "../lib/types";
+import {
+  buildPayloadAnswers,
+  isQuestionAnswered,
+  type LocalAnswer,
+  type LocalAnswerMap,
+} from "../lib/test-session";
+import { TestQuestionCard } from "./TestQuestionCard";
 
 interface ApplyTestFormProps {
   readonly patientId: string;
@@ -10,106 +16,9 @@ interface ApplyTestFormProps {
 
 type Recommendation = "" | "APTO" | "NO_APTO" | "APTO_CON_OBSERVACIONES";
 
-interface LocalAnswer {
-  optionId?: string;
-  textResponse?: string;
-  drawingDataUrl?: string;
-}
-
-interface QuestionCardProps {
-  readonly question: TestQuestion;
-  readonly index: number;
-  readonly answer: LocalAnswer;
-  readonly onOptionChange: (optionId: string) => void;
-  readonly onTextChange: (value: string) => void;
-  readonly onDrawingChange: (value: string) => void;
-}
-
-function isQuestionAnswered(
-  question: TestQuestion,
-  answer?: LocalAnswer,
-): boolean {
-  if (question.required === false) {
-    return true;
-  }
-
-  const type = question.type ?? "single_choice";
-
-  if (type === "single_choice") {
-    return Boolean(answer?.optionId);
-  }
-
-  if (type === "text") {
-    return Boolean(answer?.textResponse?.trim());
-  }
-
-  return Boolean(answer?.drawingDataUrl);
-}
-
-function QuestionCard({
-  question,
-  index,
-  answer,
-  onOptionChange,
-  onTextChange,
-  onDrawingChange,
-}: QuestionCardProps) {
-  const type = question.type ?? "single_choice";
-
-  return (
-    <article className="kpi" style={{ background: "#fff" }}>
-      <p style={{ fontWeight: 700 }}>
-        {index + 1}. {question.text}
-      </p>
-
-      {type === "single_choice" && (
-        <div className="grid" style={{ marginTop: "8px" }}>
-          {question.options.map((option) => (
-            <label
-              key={option.id}
-              style={{
-                display: "flex",
-                gap: "8px",
-                alignItems: "center",
-              }}
-            >
-              <input
-                type="radio"
-                name={question.id}
-                value={option.id}
-                checked={answer.optionId === option.id}
-                onChange={() => onOptionChange(option.id)}
-              />
-              <span>{option.text}</span>
-            </label>
-          ))}
-        </div>
-      )}
-
-      {type === "text" && (
-        <textarea
-          className="textarea"
-          style={{ marginTop: "8px" }}
-          value={answer.textResponse ?? ""}
-          onChange={(event) => onTextChange(event.target.value)}
-        />
-      )}
-
-      {type === "drawing" && (
-        <div style={{ marginTop: "8px" }}>
-          <DrawingInput
-            value={answer.drawingDataUrl}
-            onChange={onDrawingChange}
-          />
-        </div>
-      )}
-    </article>
-  );
-}
-
 export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
   const [test, setTest] = useState<TestDefinition | null>(null);
-  const [answers, setAnswers] = useState<Record<string, LocalAnswer>>({});
+  const [answers, setAnswers] = useState<LocalAnswerMap>({});
   const [observations, setObservations] = useState("");
   const [finalConclusion, setFinalConclusion] = useState("");
   const [recommendation, setRecommendation] = useState<Recommendation>("");
@@ -158,6 +67,14 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     ).length;
   }, [answers, test]);
 
+  const payloadAnswers = useMemo(() => {
+    if (!test) {
+      return [];
+    }
+
+    return buildPayloadAnswers(test.questions, answers);
+  }, [answers, test]);
+
   const updateAnswer = (questionId: string, patch: Partial<LocalAnswer>) => {
     setAnswers((current) => ({
       ...current,
@@ -186,21 +103,6 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
     setIsSaving(true);
 
     try {
-      const payloadAnswers = test.questions
-        .map((question) => {
-          const answer = answers[question.id] ?? {};
-          return {
-            questionId: question.id,
-            optionId: answer.optionId,
-            textResponse: answer.textResponse,
-            drawingDataUrl: answer.drawingDataUrl,
-          };
-        })
-        .filter(
-          (answer) =>
-            answer.optionId || answer.textResponse || answer.drawingDataUrl,
-        );
-
       await apiFetch("/results", {
         method: "POST",
         body: JSON.stringify({
@@ -256,26 +158,15 @@ export function ApplyTestForm({ patientId, testId }: ApplyTestFormProps) {
       </p>
 
       <form className="grid" style={{ marginTop: "14px" }} onSubmit={onSubmit}>
-        {test.questions.map((question, index) => {
-          const answer = answers[question.id] ?? {};
-          return (
-            <QuestionCard
-              key={question.id}
-              question={question}
-              index={index}
-              answer={answer}
-              onOptionChange={(optionId) =>
-                updateAnswer(question.id, { optionId })
-              }
-              onTextChange={(value) =>
-                updateAnswer(question.id, { textResponse: value })
-              }
-              onDrawingChange={(value) =>
-                updateAnswer(question.id, { drawingDataUrl: value })
-              }
-            />
-          );
-        })}
+        {test.questions.map((question, index) => (
+          <TestQuestionCard
+            key={question.id}
+            question={question}
+            index={index}
+            answer={answers[question.id] ?? {}}
+            onAnswerChange={(patch) => updateAnswer(question.id, patch)}
+          />
+        ))}
 
         <div className="grid grid-2">
           <label>

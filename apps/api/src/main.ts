@@ -5,6 +5,7 @@ import { AppModule } from './app.module';
 
 const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:4321';
 
+// prettier-ignore
 (async () => {
   const app = await NestFactory.create(AppModule);
 
@@ -25,7 +26,7 @@ const webOrigin = process.env.WEB_ORIGIN ?? 'http://localhost:4321';
   });
 
   await app.listen(process.env.PORT ?? 4000);
-})().catch((error: unknown) => {
+})().catch((error: unknown) => { // NOSONAR - Top-level await is not available in this CJS entrypoint.
   console.error('Error starting API application', error);
   process.exitCode = 1;
 });

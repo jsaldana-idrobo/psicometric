@@ -1,0 +1,16 @@
+---
+import AppLayout from '../../../../layouts/AppLayout.astro';
+import { ApplyTestForm } from '../../../../components/ApplyTestForm';
+
+export const prerender = false;
+
+const { id, testId } = Astro.params;
+
+if (!id || !testId) {
+  throw new Error('Patient id and test id are required');
+}
+---
+
+<AppLayout title="Aplicar Prueba | Psicometric">
+  <ApplyTestForm patientId={id} testId={testId} client:load />
+</AppLayout>

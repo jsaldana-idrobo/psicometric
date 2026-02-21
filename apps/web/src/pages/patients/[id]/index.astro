@@ -1,0 +1,16 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import { PatientDetail } from '../../../components/PatientDetail';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+
+if (!id) {
+  throw new Error('Patient id is required');
+}
+---
+
+<AppLayout title="Paciente | Psicometric">
+  <PatientDetail patientId={id} client:load />
+</AppLayout>

@@ -1,0 +1,10 @@
+---
+import AppLayout from '../../layouts/AppLayout.astro';
+import { PatientForm } from '../../components/PatientForm';
+
+export const prerender = false;
+---
+
+<AppLayout title="Nuevo Paciente | Psicometric">
+  <PatientForm mode="create" client:load />
+</AppLayout>

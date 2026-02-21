@@ -1,0 +1,39 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+}
+
+const { title = 'Psicometric' } = Astro.props;
+---
+
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>{title}</title>
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="top-bar">
+        <div>
+          <h1 class="brand-title">Psicometric</h1>
+          <p class="brand-subtitle">Evaluaciones psicotécnicas laborales</p>
+        </div>
+        <nav class="top-nav">
+          <a class="nav-link" href="/">Pacientes</a>
+          <a class="nav-link" href="/patients/new">Nuevo paciente</a>
+          <a class="nav-link" href="/login">Cambiar sesión</a>
+        </nav>
+      </header>
+
+      <section class="page-content">
+        <slot />
+      </section>
+    </main>
+  </body>
+</html>

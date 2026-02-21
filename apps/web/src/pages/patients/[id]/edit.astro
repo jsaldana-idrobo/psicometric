@@ -1,0 +1,16 @@
+---
+import AppLayout from '../../../layouts/AppLayout.astro';
+import { PatientForm } from '../../../components/PatientForm';
+
+export const prerender = false;
+
+const { id } = Astro.params;
+
+if (!id) {
+  throw new Error('Patient id is required');
+}
+---
+
+<AppLayout title="Editar Paciente | Psicometric">
+  <PatientForm mode="edit" patientId={id} client:load />
+</AppLayout>

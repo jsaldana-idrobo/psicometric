@@ -1,5 +1,7 @@
-const API_BASE_URL =
-  import.meta.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
+const DEFAULT_API_BASE_URL =
+  import.meta.env.DEV ? "http://localhost:4000/api" : "/api";
+
+const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL ?? DEFAULT_API_BASE_URL;
 
 class ApiError extends Error {
   status: number;
@@ -8,6 +10,14 @@ class ApiError extends Error {
     super(message);
     this.status = status;
   }
+}
+
+function normalizedApiBaseUrl() {
+  return API_BASE_URL.endsWith("/") ? API_BASE_URL.slice(0, -1) : API_BASE_URL;
+}
+
+function apiUrl(path: string): string {
+  return `${normalizedApiBaseUrl()}${path}`;
 }
 
 async function parseResponse(response: Response) {
@@ -41,7 +51,7 @@ async function request<T>(
   init: RequestInit,
   options: { redirectOnUnauthorized: boolean },
 ): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, init);
+  const response = await fetch(apiUrl(path), init);
   const payload = await parseResponse(response);
 
   if (!response.ok) {
@@ -97,5 +107,5 @@ export async function apiFetchPublic<T>(
 }
 
 export function apiDownloadUrl(path: string): string {
-  return `${API_BASE_URL}${path}`;
+  return apiUrl(path);
 }

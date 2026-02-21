@@ -1,7 +1,6 @@
 import { defineMiddleware } from "astro:middleware";
 
-const API_BASE_URL =
-  import.meta.env.PUBLIC_API_BASE_URL ?? "http://localhost:4000/api";
+const API_BASE_URL = import.meta.env.PUBLIC_API_BASE_URL ?? "/api";
 
 function isPublicRoute(pathname: string): boolean {
   return pathname === "/login" || pathname.startsWith("/session/");
@@ -11,7 +10,20 @@ function isStaticAsset(pathname: string): boolean {
   return pathname.startsWith("/_astro/") || pathname.includes(".");
 }
 
-async function hasValidSession(request: Request): Promise<boolean> {
+function resolveApiBaseUrl(originUrl: URL): string {
+  const normalized = API_BASE_URL.endsWith("/")
+    ? API_BASE_URL.slice(0, -1)
+    : API_BASE_URL;
+
+  if (normalized.startsWith("http://") || normalized.startsWith("https://")) {
+    return normalized;
+  }
+
+  const basePath = normalized.startsWith("/") ? normalized : `/${normalized}`;
+  return new URL(basePath, originUrl.origin).toString().replace(/\/$/, "");
+}
+
+async function hasValidSession(request: Request, apiBaseUrl: string): Promise<boolean> {
   const cookie = request.headers.get("cookie");
 
   if (!cookie) {
@@ -19,7 +31,7 @@ async function hasValidSession(request: Request): Promise<boolean> {
   }
 
   try {
-    const response = await fetch(`${API_BASE_URL.replace(/\/$/, "")}/auth/me`, {
+    const response = await fetch(`${apiBaseUrl}/auth/me`, {
       headers: { cookie },
     });
 
@@ -34,11 +46,14 @@ async function hasValidSession(request: Request): Promise<boolean> {
 export const onRequest = defineMiddleware(async (context, next) => {
   const { pathname } = context.url;
 
-  if (isStaticAsset(pathname)) {
+  if (isStaticAsset(pathname) || pathname.startsWith("/api/")) {
     return next();
   }
 
-  const isAuthenticated = await hasValidSession(context.request);
+  const isAuthenticated = await hasValidSession(
+    context.request,
+    resolveApiBaseUrl(context.url),
+  );
 
   if (isPublicRoute(pathname)) {
     if (pathname === "/login" && isAuthenticated) {

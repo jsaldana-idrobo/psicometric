@@ -14,18 +14,44 @@ interface PairedAffirmation {
   right: string;
 }
 
+const LEFT_LABELS = ["afirmación izquierda:", "afirmacion izquierda:"];
+const RIGHT_LABELS = ["afirmación derecha:", "afirmacion derecha:"];
+
 function parsePairedAffirmation(text: string): PairedAffirmation | null {
-  const labeledPair = text.match(
-    /^Afirmaci[oó]n izquierda:\s*(.+?)\s*\|\s*Afirmaci[oó]n derecha:\s*(.+)$/i,
+  const normalized = text.toLowerCase().trim();
+  const leftLabel = LEFT_LABELS.find((label) => normalized.startsWith(label));
+
+  if (!leftLabel) {
+    return null;
+  }
+
+  const content = text.trim().slice(leftLabel.length).trimStart();
+  const pipeIndex = content.indexOf("|");
+
+  if (pipeIndex < 0) {
+    return null;
+  }
+
+  const left = content.slice(0, pipeIndex).trim();
+  const rightWithLabel = content.slice(pipeIndex + 1).trimStart();
+  const rightNormalized = rightWithLabel.toLowerCase();
+  const rightLabel = RIGHT_LABELS.find((label) =>
+    rightNormalized.startsWith(label),
   );
 
-  if (!labeledPair) {
+  if (!rightLabel) {
+    return null;
+  }
+
+  const right = rightWithLabel.slice(rightLabel.length).trim();
+
+  if (!left || !right) {
     return null;
   }
 
   return {
-    left: labeledPair[1].trim(),
-    right: labeledPair[2].trim(),
+    left,
+    right,
   };
 }
 

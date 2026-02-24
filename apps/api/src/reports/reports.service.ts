@@ -104,7 +104,7 @@ export class ReportsService {
     this.renderCoverPage(doc, patient, psychologist, results);
 
     doc.on('pageAdded', () => {
-      this.renderPageChrome(doc);
+      this.renderPageChrome();
     });
 
     doc.addPage();
@@ -1006,7 +1006,7 @@ export class ReportsService {
       result.observations?.trim() || 'Sin observaciones registradas.',
     );
 
-    cursorY = this.renderLabeledParagraph(
+    this.renderLabeledParagraph(
       doc,
       x + padding,
       cursorY,
@@ -1138,8 +1138,7 @@ export class ReportsService {
     doc.y = y + 22;
   }
 
-  private renderPageChrome(doc: PDFKit.PDFDocument) {
-    void doc;
+  private renderPageChrome() {
     // Intentionally empty: removed top decorative line for cleaner pages.
   }
 

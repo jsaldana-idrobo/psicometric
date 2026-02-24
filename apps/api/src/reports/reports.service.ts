@@ -177,22 +177,7 @@ export class ReportsService {
     const leftCardHeight = 304;
     const rightCardHeight = 304;
 
-    doc.rect(0, 0, pageWidth, pageHeight).fill(REPORT_COLORS.bgSoft);
-
-    doc
-      .save()
-      .opacity(0.45)
-      .fillColor('#f7dee8')
-      .circle(pageWidth - 36, 58, 96)
-      .fill()
-      .restore();
-    doc
-      .save()
-      .opacity(0.25)
-      .fillColor('#f0cad8')
-      .circle(42, pageHeight - 58, 82)
-      .fill()
-      .restore();
+    doc.rect(0, 0, pageWidth, pageHeight).fill('#fffdfd');
 
     doc
       .save()
@@ -351,12 +336,6 @@ export class ReportsService {
       .save()
       .roundedRect(x, y, width, height, 18)
       .fillAndStroke(REPORT_COLORS.surface, REPORT_COLORS.border)
-      .restore();
-
-    doc
-      .save()
-      .roundedRect(x, y, width, 10, 18)
-      .fill(REPORT_COLORS.brandSoft)
       .restore();
 
     doc
@@ -720,12 +699,6 @@ export class ReportsService {
       .restore();
 
     doc
-      .save()
-      .roundedRect(x, y, width, 12, 18)
-      .fill(REPORT_COLORS.brandSoft)
-      .restore();
-
-    doc
       .fontSize(9)
       .font('Helvetica-Bold')
       .fillColor(REPORT_COLORS.brandStrong)
@@ -847,6 +820,27 @@ export class ReportsService {
     doc: PDFKit.PDFDocument,
     results: ReportResult[],
   ) {
+    if (results.length > 0) {
+      const firstResult = results[0];
+      const firstTest =
+        typeof firstResult.testId === 'object' && firstResult.testId
+          ? firstResult.testId
+          : null;
+      const firstTestName =
+        firstTest && 'name' in firstTest ? String(firstTest.name) : 'Prueba';
+      const firstCardHeight = this.estimateResultCardHeight(
+        doc,
+        firstResult,
+        firstTestName,
+        this.getPageContentWidth(doc),
+      );
+
+      // Avoid orphan section title at the bottom of a page.
+      this.ensurePageSpace(doc, 54 + firstCardHeight + 10);
+    } else {
+      this.ensurePageSpace(doc, 54 + 70);
+    }
+
     this.renderSectionTitle(
       doc,
       'Resultados de pruebas',
@@ -927,8 +921,6 @@ export class ReportsService {
       .roundedRect(x + 1, cardY + 10, 5, Math.max(24, cardHeight - 20), 3)
       .fill(recommendationChip?.text ?? REPORT_COLORS.brand)
       .restore();
-
-    doc.save().roundedRect(x, cardY, width, 10, 16).fill('#f6e2eb').restore();
 
     let cursorY = cardY + 14;
 
@@ -1031,11 +1023,6 @@ export class ReportsService {
     doc: PDFKit.PDFDocument,
     psychologist: ReportPsychologist,
   ) {
-    this.renderSectionTitle(
-      doc,
-      'Cierre profesional',
-      'Validacion y firma del reporte',
-    );
     this.ensurePageSpace(doc, 148);
 
     const x = doc.page.margins.left;
@@ -1152,23 +1139,8 @@ export class ReportsService {
   }
 
   private renderPageChrome(doc: PDFKit.PDFDocument) {
-    const x = doc.page.margins.left;
-    const width = this.getPageContentWidth(doc);
-
-    doc
-      .save()
-      .roundedRect(x, 28, width, 10, 5)
-      .fill(REPORT_COLORS.brandSoft)
-      .restore();
-
-    doc
-      .save()
-      .moveTo(x, 42)
-      .lineTo(x + width, 42)
-      .lineWidth(1)
-      .strokeColor('#f0e0e8')
-      .stroke()
-      .restore();
+    void doc;
+    // Intentionally empty: removed top decorative line for cleaner pages.
   }
 
   private renderPageFooters(doc: PDFKit.PDFDocument) {

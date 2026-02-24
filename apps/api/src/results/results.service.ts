@@ -36,7 +36,104 @@ interface EvaluatedSubmission {
   profileScores: Record<string, number>;
 }
 
+interface ResultAnswerDetail extends ScoredAnswer {
+  questionText: string;
+  questionType: QuestionType;
+  optionText?: string;
+}
+
+type ValantiDimensionKey =
+  | 'verdad'
+  | 'rectitud'
+  | 'paz'
+  | 'amor'
+  | 'noViolencia';
+
+interface ValantiDimensionScore {
+  key: ValantiDimensionKey;
+  label: string;
+  directScore: number;
+  mean: number;
+  stdDev: number;
+  standardizedScore: number;
+  distanceFromBaseline: number;
+  interpretationLabel: string;
+}
+
+interface ValantiProfileDetail {
+  baselineScore: number;
+  dimensions: ValantiDimensionScore[];
+  topDimensionKey: ValantiDimensionKey;
+  topDimensionLabel: string;
+  lowDimensionKey: ValantiDimensionKey;
+  lowDimensionLabel: string;
+  summaryText: string;
+  narrative: string[];
+}
+
 type TestQuestion = TestDefinition['questions'][number];
+
+const VALANTI_BASELINE_STANDARD_SCORE = 50;
+
+const VALANTI_DIMENSION_META: Array<{
+  key: ValantiDimensionKey;
+  label: string;
+  mean: number;
+  stdDev: number;
+  highTraits: string;
+  lowTraits: string;
+}> = [
+  {
+    key: 'verdad',
+    label: 'Verdad',
+    mean: 15.65,
+    stdDev: 4.7,
+    highTraits:
+      'da prioridad a la dimensión intelectual del valor, con énfasis en veracidad, raciocinio, curiosidad y honestidad intelectual',
+    lowTraits:
+      'muestra menor prioridad relativa en la dimensión intelectual del valor y puede apoyarse más en otros ejes para orientar sus decisiones',
+  },
+  {
+    key: 'rectitud',
+    label: 'Rectitud',
+    mean: 21.05,
+    stdDev: 4.44,
+    highTraits:
+      'resalta la dimensión de compromiso, confiabilidad, deber, cumplimiento de normas, respeto y responsabilidad',
+    lowTraits:
+      'da menor peso relativo a la dimensión de disciplina y compromiso, privilegiando otros criterios valorales',
+  },
+  {
+    key: 'paz',
+    label: 'Paz',
+    mean: 17.35,
+    stdDev: 6.61,
+    highTraits:
+      'resalta la dimensión emocional del valor, con prioridad en calma, conciliación, paciencia, reflexión y satisfacción',
+    lowTraits:
+      'la dimensión emocional asociada a calma y serenidad aparece con menor prioridad relativa frente a otros valores',
+  },
+  {
+    key: 'amor',
+    label: 'Amor',
+    mean: 16.68,
+    stdDev: 5.41,
+    highTraits:
+      'resalta la dimensión social del valor, con énfasis en amabilidad, amistad, ayuda, apoyo y compartir',
+    lowTraits:
+      'la dimensión social-afectiva del valor aparece en segundo plano relativo, con menor énfasis en ayuda y afiliación',
+  },
+  {
+    key: 'noViolencia',
+    label: 'No violencia',
+    mean: 21.22,
+    stdDev: 7.19,
+    highTraits:
+      'resalta la dimensión espiritual y universal del valor, orientada a justicia social, unidad humana, respeto amplio y fraternidad',
+    lowTraits:
+      'otorga menor peso relativo a la dimensión espiritual-universal del valor, priorizando otras dimensiones',
+  },
+];
 
 @Injectable()
 export class ResultsService {
@@ -75,6 +172,9 @@ export class ResultsService {
 
     return this.resultModel
       .findById(created.id)
+      .select(
+        'testId totalScore profileScores interpretationLabel interpretationDescription observations finalConclusion recommendation evaluatedAt createdAt',
+      )
       .populate('testId', 'name category')
       .lean()
       .exec();
@@ -111,6 +211,9 @@ export class ResultsService {
 
     return this.resultModel
       .findById(created.id)
+      .select(
+        'testId totalScore profileScores interpretationLabel interpretationDescription observations finalConclusion recommendation evaluatedAt createdAt',
+      )
       .populate('testId', 'name category')
       .lean()
       .exec();
@@ -121,10 +224,93 @@ export class ResultsService {
 
     return this.resultModel
       .find({ psychologistId, patientId })
+      .select(
+        'testId totalScore profileScores interpretationLabel interpretationDescription observations finalConclusion recommendation evaluatedAt createdAt',
+      )
       .sort({ evaluatedAt: -1, createdAt: -1 })
       .populate('testId', 'name category')
       .lean()
       .exec();
+  }
+
+  async findDetail(psychologistId: string, resultId: string) {
+    const result = await this.resultModel
+      .findOne({ _id: resultId, psychologistId })
+      .select(
+        'testId answers profileScores totalScore interpretationLabel interpretationDescription evaluatedAt',
+      )
+      .lean()
+      .exec();
+
+    if (!result) {
+      throw new NotFoundException('Resultado no encontrado');
+    }
+
+    const test = await this.testModel
+      .findById(result.testId)
+      .select('name questions profileLabels')
+      .lean()
+      .exec();
+
+    if (!test) {
+      throw new NotFoundException('Prueba no encontrada para este resultado');
+    }
+
+    const questionMap = new Map(
+      test.questions.map((question) => [question.id, question]),
+    );
+
+    let profileScores = this.toNumberRecord(result.profileScores);
+    const isValanti = this.isValantiTestName(test.name);
+
+    if (isValanti && !this.hasValantiDirectScores(profileScores)) {
+      const recomputedProfileScores =
+        this.recomputeProfileScoresFromStoredAnswers(
+          test.questions,
+          result.answers ?? [],
+        );
+
+      if (this.hasValantiDirectScores(recomputedProfileScores)) {
+        profileScores = recomputedProfileScores;
+      }
+    }
+
+    const answers: ResultAnswerDetail[] = (result.answers ?? []).map(
+      (answer) => {
+        const question = questionMap.get(answer.questionId);
+        const questionType = question?.type ?? QuestionType.SINGLE_CHOICE;
+        const selectedOption = answer.optionId
+          ? question?.options.find((option) => option.id === answer.optionId)
+          : undefined;
+
+        return {
+          questionId: answer.questionId,
+          questionText:
+            question?.text ??
+            `Pregunta no encontrada en la versión actual (${answer.questionId})`,
+          questionType,
+          optionId: answer.optionId,
+          optionText: selectedOption?.text,
+          textResponse: answer.textResponse,
+          drawingDataUrl: answer.drawingDataUrl,
+          value: Number(answer.value ?? 0),
+        };
+      },
+    );
+
+    return {
+      _id: String(result._id),
+      totalScore: result.totalScore,
+      interpretationLabel: result.interpretationLabel,
+      interpretationDescription: result.interpretationDescription,
+      evaluatedAt: result.evaluatedAt,
+      profileScores,
+      profileLabels: this.toStringRecord(test.profileLabels),
+      valantiProfile: isValanti
+        ? (this.buildValantiProfile(profileScores) ?? undefined)
+        : undefined,
+      answers,
+    };
   }
 
   async updateNotes(
@@ -137,6 +323,9 @@ export class ResultsService {
         new: true,
         runValidators: true,
       })
+      .select(
+        'testId totalScore profileScores interpretationLabel interpretationDescription observations finalConclusion recommendation evaluatedAt createdAt',
+      )
       .populate('testId', 'name category')
       .lean()
       .exec();
@@ -184,7 +373,13 @@ export class ResultsService {
       0,
     );
 
-    const interpretation = this.resolveInterpretation(test, totalScore);
+    const valantiProfile = this.isValantiTestName(test.name)
+      ? this.buildValantiProfile(profileScores)
+      : null;
+
+    const interpretation = valantiProfile
+      ? this.resolveValantiInterpretation(valantiProfile)
+      : this.resolveInterpretation(test, totalScore);
 
     return {
       answers: scoredAnswers,
@@ -319,6 +514,154 @@ export class ResultsService {
     }
   }
 
+  private isValantiTestName(name?: string) {
+    return name?.trim().toLowerCase() === 'valanti';
+  }
+
+  private hasValantiDirectScores(profileScores: Record<string, number>) {
+    return VALANTI_DIMENSION_META.every(({ key }) =>
+      Number.isFinite(profileScores[key]),
+    );
+  }
+
+  private recomputeProfileScoresFromStoredAnswers(
+    questions: TestQuestion[],
+    answers: Array<Pick<ScoredAnswer, 'questionId' | 'optionId'>>,
+  ) {
+    const questionMap = new Map(
+      questions.map((question) => [question.id, question]),
+    );
+    const recomputed: Record<string, number> = {};
+
+    for (const answer of answers) {
+      if (!answer.optionId) {
+        continue;
+      }
+
+      const question = questionMap.get(answer.questionId);
+      if (!question) {
+        continue;
+      }
+
+      const option = question.options.find(
+        (item) => item.id === answer.optionId,
+      );
+      if (!option) {
+        continue;
+      }
+
+      this.mergeProfileScores(
+        recomputed,
+        this.toNumberRecord(option.profileScores),
+      );
+    }
+
+    return recomputed;
+  }
+
+  private resolveValantiStandardLabel(score: number) {
+    if (score <= 30) {
+      return 'Bajo';
+    }
+
+    if (score <= 40) {
+      return 'Promedio Bajo';
+    }
+
+    if (score <= 50) {
+      return 'Promedio';
+    }
+
+    if (score <= 60) {
+      return 'Promedio Alto';
+    }
+
+    return 'Alto';
+  }
+
+  private buildValantiProfile(
+    profileScores: Record<string, number>,
+  ): ValantiProfileDetail | null {
+    if (!this.hasValantiDirectScores(profileScores)) {
+      return null;
+    }
+
+    const dimensions = VALANTI_DIMENSION_META.map((meta) => {
+      const directScore = Math.round(Number(profileScores[meta.key] ?? 0));
+      const standardizedScore = Math.round(
+        VALANTI_BASELINE_STANDARD_SCORE +
+          (10 * (directScore - meta.mean)) / meta.stdDev,
+      );
+      const distanceFromBaseline =
+        standardizedScore - VALANTI_BASELINE_STANDARD_SCORE;
+
+      return {
+        key: meta.key,
+        label: meta.label,
+        directScore,
+        mean: meta.mean,
+        stdDev: meta.stdDev,
+        standardizedScore,
+        distanceFromBaseline,
+        interpretationLabel:
+          this.resolveValantiStandardLabel(standardizedScore),
+      } satisfies ValantiDimensionScore;
+    });
+
+    const topDimension = dimensions.reduce((best, current) =>
+      current.standardizedScore > best.standardizedScore ? current : best,
+    );
+    const lowDimension = dimensions.reduce((worst, current) =>
+      current.standardizedScore < worst.standardizedScore ? current : worst,
+    );
+
+    const summaryText =
+      `Mayor peso relativo en ${topDimension.label} (${topDimension.standardizedScore}, ${topDimension.interpretationLabel}) ` +
+      `y menor peso relativo en ${lowDimension.label} (${lowDimension.standardizedScore}, ${lowDimension.interpretationLabel}).`;
+
+    const narrative = [
+      `El área con mayor peso relativo es ${topDimension.label}. El área con menor peso relativo es ${lowDimension.label}.`,
+      ...dimensions.map((dimension) => {
+        const meta = VALANTI_DIMENSION_META.find(
+          (item) => item.key === dimension.key,
+        );
+        const distanceAbs = Math.abs(dimension.distanceFromBaseline);
+
+        if (!meta) {
+          return `${dimension.label}: puntaje estándar ${dimension.standardizedScore} (${dimension.interpretationLabel}).`;
+        }
+
+        if (dimension.distanceFromBaseline > 0) {
+          return `${dimension.label}: puntaje estándar ${dimension.standardizedScore} (${dimension.interpretationLabel}), ${distanceAbs} puntos por encima de la base 50; ${meta.highTraits}.`;
+        }
+
+        if (dimension.distanceFromBaseline < 0) {
+          return `${dimension.label}: puntaje estándar ${dimension.standardizedScore} (${dimension.interpretationLabel}), ${distanceAbs} puntos por debajo de la base 50; ${meta.lowTraits}.`;
+        }
+
+        return `${dimension.label}: puntaje estándar ${dimension.standardizedScore} (${dimension.interpretationLabel}), en la base 50; muestra un peso relativo equilibrado en esta dimensión.`;
+      }),
+    ];
+
+    return {
+      baselineScore: VALANTI_BASELINE_STANDARD_SCORE,
+      dimensions,
+      topDimensionKey: topDimension.key,
+      topDimensionLabel: topDimension.label,
+      lowDimensionKey: lowDimension.key,
+      lowDimensionLabel: lowDimension.label,
+      summaryText,
+      narrative,
+    };
+  }
+
+  private resolveValantiInterpretation(profile: ValantiProfileDetail) {
+    return {
+      label: 'Perfil VALANTI',
+      description: profile.summaryText,
+    };
+  }
+
   private resolveInterpretation(
     test: Pick<
       TestDefinition,
@@ -425,6 +768,31 @@ export class ResultsService {
       const entries = Object.entries(value as Record<string, unknown>);
       return Object.fromEntries(
         entries.map(([key, entryValue]) => [key, Number(entryValue ?? 0)]),
+      );
+    }
+
+    return {};
+  }
+
+  private toStringRecord(value: unknown): Record<string, string> {
+    if (!value) {
+      return {};
+    }
+
+    if (value instanceof Map) {
+      return Object.fromEntries(
+        Array.from(value.entries()).map(([key, entryValue]) => [
+          key,
+          String(entryValue ?? ''),
+        ]),
+      );
+    }
+
+    if (typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>).map(
+          ([key, entryValue]) => [key, String(entryValue ?? '')],
+        ),
       );
     }
 

@@ -3,8 +3,10 @@ import { apiDownloadUrl, apiFetch } from "../lib/api";
 import type {
   Patient,
   PublicSession,
-  TestDefinition,
+  TestCatalogItem,
   TestResult,
+  TestResultAnswerDetail,
+  TestResultDetail,
 } from "../lib/types";
 
 interface PatientDetailProps {
@@ -58,11 +60,50 @@ function sessionStatusText(status: PublicSession["status"]) {
   return "Creada";
 }
 
+function answerTypeLabel(answer: TestResultAnswerDetail) {
+  if (answer.questionType === "drawing") {
+    return "Dibujo";
+  }
+  if (answer.questionType === "text") {
+    return "Texto";
+  }
+  return "Selección";
+}
+
+function sortedProfileScores(detail?: TestResultDetail) {
+  if (!detail?.profileScores) {
+    return [];
+  }
+
+  return Object.entries(detail.profileScores).sort((a, b) =>
+    a[0].localeCompare(b[0], "es"),
+  );
+}
+
+function formatSigned(value: number) {
+  if (value > 0) {
+    return `+${value}`;
+  }
+  return String(value);
+}
+
 export function PatientDetail({ patientId }: PatientDetailProps) {
   const [patient, setPatient] = useState<Patient | null>(null);
-  const [tests, setTests] = useState<TestDefinition[]>([]);
+  const [tests, setTests] = useState<TestCatalogItem[]>([]);
   const [results, setResults] = useState<TestResult[]>([]);
   const [sessions, setSessions] = useState<PublicSession[]>([]);
+  const [expandedResults, setExpandedResults] = useState<
+    Record<string, boolean>
+  >({});
+  const [resultDetails, setResultDetails] = useState<
+    Record<string, TestResultDetail | undefined>
+  >({});
+  const [resultDetailLoading, setResultDetailLoading] = useState<
+    Record<string, boolean>
+  >({});
+  const [resultDetailError, setResultDetailError] = useState<
+    Record<string, string>
+  >({});
   const [edits, setEdits] = useState<Record<string, ResultEdit>>({});
   const [linkLoadingByTest, setLinkLoadingByTest] = useState<
     Record<string, boolean>
@@ -73,6 +114,10 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
   const loadData = async () => {
     setIsLoading(true);
     setError("");
+    setExpandedResults({});
+    setResultDetails({});
+    setResultDetailLoading({});
+    setResultDetailError({});
 
     try {
       const [
@@ -82,7 +127,7 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
         sessionsResponse,
       ] = await Promise.all([
         apiFetch<Patient>(`/patients/${patientId}`),
-        apiFetch<TestDefinition[]>("/tests"),
+        apiFetch<TestCatalogItem[]>("/tests?summary=1"),
         apiFetch<TestResult[]>(`/results/patient/${patientId}`),
         apiFetch<PublicSession[]>(`/public-sessions/patient/${patientId}`),
       ]);
@@ -187,6 +232,45 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
     } catch {
       globalThis.alert("No se pudo copiar el enlace");
     }
+  };
+
+  const loadResultDetail = async (resultId: string) => {
+    if (resultDetails[resultId] || resultDetailLoading[resultId]) {
+      return;
+    }
+
+    setResultDetailLoading((current) => ({ ...current, [resultId]: true }));
+    setResultDetailError((current) => ({ ...current, [resultId]: "" }));
+
+    try {
+      const detail = await apiFetch<TestResultDetail>(
+        `/results/${resultId}/detail`,
+      );
+      setResultDetails((current) => ({ ...current, [resultId]: detail }));
+    } catch (detailError) {
+      setResultDetailError((current) => ({
+        ...current,
+        [resultId]:
+          detailError instanceof Error
+            ? detailError.message
+            : "No se pudieron cargar las respuestas",
+      }));
+    } finally {
+      setResultDetailLoading((current) => ({ ...current, [resultId]: false }));
+    }
+  };
+
+  const toggleResultDetail = (resultId: string) => {
+    setExpandedResults((current) => {
+      const nextValue = !current[resultId];
+      const next = { ...current, [resultId]: nextValue };
+
+      if (nextValue) {
+        void loadResultDetail(resultId);
+      }
+
+      return next;
+    });
   };
 
   const downloadPdf = () => {
@@ -366,6 +450,11 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
                 typeof result.testId === "string"
                   ? "Prueba"
                   : result.testId.name;
+              const isExpanded = Boolean(expandedResults[result._id]);
+              const detail = resultDetails[result._id];
+              const detailLoading = Boolean(resultDetailLoading[result._id]);
+              const detailError = resultDetailError[result._id];
+              const profileEntries = sortedProfileScores(detail);
 
               return (
                 <article
@@ -444,6 +533,15 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
                   </div>
 
                   <div className="actions" style={{ marginTop: "8px" }}>
+                    <button
+                      type="button"
+                      className="btn btn-soft"
+                      onClick={() => toggleResultDetail(result._id)}
+                    >
+                      {isExpanded
+                        ? "Ocultar respuestas"
+                        : "Ver respuestas del paciente"}
+                    </button>
                     <select
                       className="select"
                       style={{ maxWidth: "320px" }}
@@ -478,6 +576,245 @@ export function PatientDetail({ patientId }: PatientDetailProps) {
                       Guardar observaciones
                     </button>
                   </div>
+
+                  {isExpanded && (
+                    <section
+                      style={{
+                        marginTop: "12px",
+                        borderTop: "1px solid #efdfe7",
+                        paddingTop: "12px",
+                      }}
+                    >
+                      <h4 style={{ fontSize: "1rem" }}>
+                        Detalle de respuestas
+                      </h4>
+
+                      {detailLoading && (
+                        <p style={{ marginTop: "8px", color: "#4b5563" }}>
+                          Cargando respuestas...
+                        </p>
+                      )}
+
+                      {detailError && <p className="error">{detailError}</p>}
+
+                      {!detailLoading && detail && (
+                        <div className="grid" style={{ marginTop: "10px" }}>
+                          {detail.valantiProfile && (
+                            <section
+                              style={{
+                                border: "1px solid #efdfe7",
+                                borderRadius: "12px",
+                                padding: "12px",
+                                background: "#fff",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: "8px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <strong>Perfil VALANTI (automático)</strong>
+                                <span className="badge">
+                                  Base estándar:{" "}
+                                  {detail.valantiProfile.baselineScore}
+                                </span>
+                              </div>
+
+                              <p style={{ marginTop: "8px", color: "#334155" }}>
+                                {detail.valantiProfile.summaryText}
+                              </p>
+
+                              <div
+                                className="grid grid-2"
+                                style={{ marginTop: "10px" }}
+                              >
+                                {detail.valantiProfile.dimensions.map(
+                                  (dimension) => (
+                                    <article
+                                      key={`${result._id}-${dimension.key}`}
+                                      style={{
+                                        border: "1px solid #efdfe7",
+                                        borderRadius: "10px",
+                                        padding: "10px",
+                                        background: "#fffafc",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          display: "flex",
+                                          justifyContent: "space-between",
+                                          gap: "8px",
+                                          flexWrap: "wrap",
+                                        }}
+                                      >
+                                        <strong>{dimension.label}</strong>
+                                        <span
+                                          className={interpretationClass(
+                                            dimension.interpretationLabel,
+                                          )}
+                                        >
+                                          {dimension.interpretationLabel}
+                                        </span>
+                                      </div>
+
+                                      <p
+                                        style={{
+                                          marginTop: "6px",
+                                          color: "#334155",
+                                          fontSize: "0.92rem",
+                                        }}
+                                      >
+                                        Directo:{" "}
+                                        <strong>{dimension.directScore}</strong>{" "}
+                                        | Estándar:{" "}
+                                        <strong>
+                                          {dimension.standardizedScore}
+                                        </strong>{" "}
+                                        | Distancia:{" "}
+                                        <strong>
+                                          {formatSigned(
+                                            dimension.distanceFromBaseline,
+                                          )}
+                                        </strong>
+                                      </p>
+                                    </article>
+                                  ),
+                                )}
+                              </div>
+
+                              {detail.valantiProfile.narrative.length > 0 && (
+                                <div
+                                  className="grid"
+                                  style={{ marginTop: "10px" }}
+                                >
+                                  {detail.valantiProfile.narrative.map(
+                                    (text, index) => (
+                                      <p
+                                        key={`${result._id}-valanti-note-${index + 1}`}
+                                        style={{
+                                          margin: 0,
+                                          color: "#334155",
+                                          lineHeight: 1.45,
+                                        }}
+                                      >
+                                        {text}
+                                      </p>
+                                    ),
+                                  )}
+                                </div>
+                              )}
+                            </section>
+                          )}
+
+                          {profileEntries.length > 0 &&
+                            !detail.valantiProfile && (
+                              <div
+                                style={{
+                                  display: "flex",
+                                  flexWrap: "wrap",
+                                  gap: "8px",
+                                }}
+                              >
+                                {profileEntries.map(([key, value]) => (
+                                  <span
+                                    key={key}
+                                    style={{
+                                      border: "1px solid #ead5e0",
+                                      borderRadius: "999px",
+                                      padding: "4px 10px",
+                                      background: "#fff7fb",
+                                      fontSize: "0.82rem",
+                                    }}
+                                  >
+                                    <strong>
+                                      {detail.profileLabels?.[key] ?? key}
+                                    </strong>
+                                    : {value}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+
+                          {detail.answers.map((answer) => (
+                            <article
+                              key={`${result._id}-${answer.questionId}`}
+                              style={{
+                                border: "1px solid #efdfe7",
+                                borderRadius: "12px",
+                                padding: "10px",
+                                background: "#fffafc",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: "8px",
+                                  flexWrap: "wrap",
+                                }}
+                              >
+                                <strong>{answer.questionText}</strong>
+                                <span className="badge">
+                                  {answerTypeLabel(answer)}
+                                </span>
+                              </div>
+
+                              {answer.questionType === "drawing" &&
+                                (answer.drawingDataUrl ? (
+                                  <img
+                                    src={answer.drawingDataUrl}
+                                    alt={`Dibujo ${answer.questionId}`}
+                                    style={{
+                                      marginTop: "8px",
+                                      width: "100%",
+                                      maxWidth: "560px",
+                                      display: "block",
+                                      borderRadius: "10px",
+                                      border: "1px solid #e9d8e2",
+                                      background: "#fff",
+                                    }}
+                                  />
+                                ) : (
+                                  <p
+                                    style={{
+                                      marginTop: "8px",
+                                      color: "#4b5563",
+                                    }}
+                                  >
+                                    Sin dibujo guardado.
+                                  </p>
+                                ))}
+
+                              {answer.questionType === "text" && (
+                                <p
+                                  style={{
+                                    marginTop: "8px",
+                                    color: "#334155",
+                                    whiteSpace: "pre-wrap",
+                                  }}
+                                >
+                                  {answer.textResponse || "Sin respuesta"}
+                                </p>
+                              )}
+
+                              {answer.questionType === "single_choice" && (
+                                <p
+                                  style={{ marginTop: "8px", color: "#334155" }}
+                                >
+                                  {answer.optionText ??
+                                    answer.optionId ??
+                                    "Sin opción registrada"}
+                                </p>
+                              )}
+                            </article>
+                          ))}
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </article>
               );
             })}

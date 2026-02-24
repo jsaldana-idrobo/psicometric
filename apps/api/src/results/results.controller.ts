@@ -34,6 +34,14 @@ export class ResultsController {
     return this.resultsService.findByPatient(user.userId, patientId);
   }
 
+  @Get(':id/detail')
+  findDetail(
+    @CurrentUser() user: { userId: string },
+    @Param('id') id: string,
+  ): Promise<unknown> {
+    return this.resultsService.findDetail(user.userId, id);
+  }
+
   @Patch(':id/notes')
   updateNotes(
     @CurrentUser() user: { userId: string },

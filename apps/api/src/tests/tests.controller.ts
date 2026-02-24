@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/jwt-auth.guard';
 import { TestsService } from './tests.service';
 
@@ -8,8 +8,9 @@ export class TestsController {
   constructor(private readonly testsService: TestsService) {}
 
   @Get()
-  findAll() {
-    return this.testsService.findAll();
+  findAll(@Query('summary') summary?: string) {
+    const summaryOnly = summary === '1' || summary === 'true';
+    return this.testsService.findAll(summaryOnly);
   }
 
   @Get(':id')

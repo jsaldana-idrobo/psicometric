@@ -47,12 +47,14 @@ export class TestsService implements OnModuleInit {
       .exec();
   }
 
-  async findAll() {
-    return this.testModel
-      .find({ active: true })
-      .sort({ name: 1 })
-      .lean()
-      .exec();
+  async findAll(summaryOnly = false) {
+    const query = this.testModel.find({ active: true }).sort({ name: 1 });
+
+    if (summaryOnly) {
+      query.select('name category description');
+    }
+
+    return query.lean().exec();
   }
 
   async findOne(id: string) {

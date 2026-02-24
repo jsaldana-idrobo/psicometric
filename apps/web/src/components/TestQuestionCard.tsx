@@ -17,6 +17,19 @@ interface PairedAffirmation {
 const LEFT_LABELS = ["afirmación izquierda:", "afirmacion izquierda:"];
 const RIGHT_LABELS = ["afirmación derecha:", "afirmacion derecha:"];
 
+function resolveWarteggPlate(questionId: string): number | null {
+  const match = /^draw([1-8])$/i.exec(questionId.trim());
+  if (!match) {
+    return null;
+  }
+
+  return Number(match[1]);
+}
+
+function isWarteggTitleQuestion(questionId: string): boolean {
+  return /^title([1-8])$/i.test(questionId.trim());
+}
+
 function parsePairedAffirmation(text: string): PairedAffirmation | null {
   const normalized = text.toLowerCase().trim();
   const leftLabel = LEFT_LABELS.find((label) => normalized.startsWith(label));
@@ -63,6 +76,8 @@ export function TestQuestionCard({
 }: TestQuestionCardProps) {
   const type = question.type ?? "single_choice";
   const pairedAffirmation = parsePairedAffirmation(question.text);
+  const warteggPlate = resolveWarteggPlate(question.id);
+  const isWarteggTitle = type === "text" && isWarteggTitleQuestion(question.id);
 
   return (
     <article className="kpi" style={{ background: "#fff" }}>
@@ -114,14 +129,28 @@ export function TestQuestionCard({
       )}
 
       {type === "text" && (
-        <textarea
-          className="textarea"
-          style={{ marginTop: "8px" }}
-          value={answer.textResponse ?? ""}
-          onChange={(event) =>
-            onAnswerChange({ textResponse: event.target.value })
-          }
-        />
+        <>
+          {isWarteggTitle ? (
+            <input
+              className="input"
+              style={{ marginTop: "8px" }}
+              value={answer.textResponse ?? ""}
+              onChange={(event) =>
+                onAnswerChange({ textResponse: event.target.value })
+              }
+              placeholder="Escribe un título breve"
+            />
+          ) : (
+            <textarea
+              className="textarea"
+              style={{ marginTop: "8px" }}
+              value={answer.textResponse ?? ""}
+              onChange={(event) =>
+                onAnswerChange({ textResponse: event.target.value })
+              }
+            />
+          )}
+        </>
       )}
 
       {type === "drawing" && (
@@ -129,6 +158,11 @@ export function TestQuestionCard({
           <DrawingInput
             value={answer.drawingDataUrl}
             onChange={(value) => onAnswerChange({ drawingDataUrl: value })}
+            width={warteggPlate ? 420 : 680}
+            height={warteggPlate ? 420 : 340}
+            expandedWidth={warteggPlate ? 960 : 1200}
+            expandedHeight={warteggPlate ? 960 : 600}
+            templateId={warteggPlate ? `wartegg-${warteggPlate}` : undefined}
           />
         </div>
       )}

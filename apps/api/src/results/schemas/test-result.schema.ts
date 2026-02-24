@@ -76,3 +76,9 @@ export class TestResult {
 
 export const TestResultSchema = SchemaFactory.createForClass(TestResult);
 TestResultSchema.index({ psychologistId: 1, patientId: 1, createdAt: -1 });
+TestResultSchema.index({
+  psychologistId: 1,
+  patientId: 1,
+  evaluatedAt: -1,
+  createdAt: -1,
+});

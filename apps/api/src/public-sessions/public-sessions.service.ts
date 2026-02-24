@@ -80,6 +80,7 @@ export class PublicSessionsService {
 
     const sessions = await this.sessionModel
       .find({ psychologistId, patientId })
+      .select('token status expiresAt startedAt submittedAt testId resultId')
       .sort({ createdAt: -1 })
       .populate('testId', 'name category')
       .populate('resultId', 'totalScore interpretationLabel evaluatedAt')

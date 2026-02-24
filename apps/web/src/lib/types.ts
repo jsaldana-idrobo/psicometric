@@ -44,6 +44,13 @@ export interface TestDefinition {
   scoringMode?: "range" | "profile" | "manual";
 }
 
+export interface TestCatalogItem {
+  _id: string;
+  name: string;
+  category: string;
+  description: string;
+}
+
 export interface TestAnswer {
   questionId: string;
   optionId?: string;
@@ -70,6 +77,51 @@ export interface TestResult {
         category: string;
       }
     | string;
+}
+
+export interface TestResultAnswerDetail {
+  questionId: string;
+  questionText: string;
+  questionType: QuestionType;
+  optionId?: string;
+  optionText?: string;
+  textResponse?: string;
+  drawingDataUrl?: string;
+  value: number;
+}
+
+export interface ValantiDimensionProfile {
+  key: "verdad" | "rectitud" | "paz" | "amor" | "noViolencia";
+  label: string;
+  directScore: number;
+  mean: number;
+  stdDev: number;
+  standardizedScore: number;
+  distanceFromBaseline: number;
+  interpretationLabel: string;
+}
+
+export interface ValantiProfileDetail {
+  baselineScore: number;
+  dimensions: ValantiDimensionProfile[];
+  topDimensionKey: ValantiDimensionProfile["key"];
+  topDimensionLabel: string;
+  lowDimensionKey: ValantiDimensionProfile["key"];
+  lowDimensionLabel: string;
+  summaryText: string;
+  narrative: string[];
+}
+
+export interface TestResultDetail {
+  _id: string;
+  totalScore: number;
+  interpretationLabel: string;
+  interpretationDescription: string;
+  evaluatedAt: string;
+  profileScores?: Record<string, number>;
+  profileLabels?: Record<string, string>;
+  valantiProfile?: ValantiProfileDetail;
+  answers: TestResultAnswerDetail[];
 }
 
 export interface Profile {
